@@ -12,7 +12,7 @@ import io.ktor.server.routing.*
 import java.util.UUID
 
 fun Route.buildingRoutes(service: BuildingService) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/buildings") {
             get {
                 val principal = call.principal<AgentPrincipal>()!!
@@ -33,8 +33,28 @@ fun Route.buildingRoutes(service: BuildingService) {
                 val principal = call.principal<AgentPrincipal>()!!
                 val id = UUID.fromString(call.parameters["id"]!!)
                 val building = service.get(UUID.fromString(principal.agencyId), id)
-                    ?: throw NoSuchElementException("Building not found")
+                    ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("error" to "Building not found"))
                 call.respond(ApiResponse(building))
+            }
+
+            patch("/{id}") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val id = UUID.fromString(call.parameters["id"]!!)
+                val req = call.receive<UpdateBuildingRequest>()
+                val building = service.update(UUID.fromString(principal.agencyId), id, req)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, mapOf("error" to "Building not found"))
+                call.respond(ApiResponse(building))
+            }
+
+            delete("/{id}") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val id = UUID.fromString(call.parameters["id"]!!)
+                val deleted = service.delete(UUID.fromString(principal.agencyId), id)
+                if (!deleted) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Cannot delete building with active leases"))
+                } else {
+                    call.respond(HttpStatusCode.NoContent)
+                }
             }
 
             get("/{id}/summary") {

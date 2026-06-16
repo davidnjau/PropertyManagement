@@ -135,6 +135,10 @@ object PaymentsTable : UUIDTable("payments") {
     val isAdjustment = bool("is_adjustment").default(false)
     val adjustmentReason = text("adjustment_reason").nullable()
     val adjustedPaymentId = uuid("adjusted_payment_id").nullable()
+    val agentNotes = text("agent_notes").nullable()
+    val voided = bool("voided").default(false)
+    val voidedAt: Column<Instant?> = timestamp("voided_at").nullable()
+    val voidedBy = uuid("voided_by").nullable()
     val createdAt: Column<Instant> = timestamp("created_at")
     val updatedAt: Column<Instant> = timestamp("updated_at")
 }
@@ -179,5 +183,104 @@ object AuditEventsTable : UUIDTable("audit_events") {
     val diffJson = text("diff_json").nullable()
     val ipAddress = varchar("ip_address", 50).nullable()
     val userAgent = text("user_agent").nullable()
+    val createdAt: Column<Instant> = timestamp("created_at")
+}
+
+object PaymentMethodsConfigTable : UUIDTable("payment_methods_config") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE)
+    val methodId = varchar("method_id", 50)
+    val enabled = bool("enabled").default(false)
+    val updatedAt: Column<Instant> = timestamp("updated_at")
+}
+
+object BankConfigTable : UUIDTable("bank_config") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE)
+    val bankId = varchar("bank_id", 100)
+    val bankName = varchar("bank_name", 255)
+    val enabled = bool("enabled").default(false)
+}
+
+object MpesaConfigTable : UUIDTable("mpesa_config") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE).uniqueIndex()
+    val businessNo = varchar("business_no", 100)
+    val accountNo = varchar("account_no", 100)
+    val instructions = text("instructions").nullable()
+}
+
+object PaypalConfigTable : UUIDTable("paypal_config") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE).uniqueIndex()
+    val email = varchar("email", 255)
+    val instructions = text("instructions").nullable()
+}
+
+object DocumentsTable : UUIDTable("documents") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE)
+    val targetType = varchar("target_type", 50)
+    val targetId = uuid("target_id")
+    val docType = varchar("doc_type", 100)
+    val fileName = varchar("file_name", 500)
+    val fileSize = long("file_size")
+    val mimeType = varchar("mime_type", 100)
+    val notes = text("notes").nullable()
+    val uploadedBy = reference("uploaded_by", UsersTable)
+    val fileUrl = varchar("file_url", 1000)
+    val uploadedAt: Column<Instant> = timestamp("uploaded_at")
+    val deletedAt: Column<Instant?> = timestamp("deleted_at").nullable()
+}
+
+object AlertsTable : UUIDTable("alerts") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE)
+    val sentBy = reference("sent_by", UsersTable)
+    val targetType = varchar("target_type", 50)
+    val targetLabel = varchar("target_label", 500)
+    val buildingId = uuid("building_id").nullable()
+    val rentDueFilter = varchar("rent_due_filter", 100).nullable()
+    val channels = varchar("channels", 500)
+    val subject = varchar("subject", 500)
+    val message = text("message")
+    val recipientCount = integer("recipient_count").default(0)
+    val status = varchar("status", 50).default("SENT")
+    val failureReason = text("failure_reason").nullable()
+    val sentAt: Column<Instant> = timestamp("sent_at")
+}
+
+object AlertRecipientsTable : UUIDTable("alert_recipients") {
+    val alertId = reference("alert_id", AlertsTable, onDelete = ReferenceOption.CASCADE)
+    val tenantId = uuid("tenant_id")
+    val tenantName = varchar("tenant_name", 255)
+    val email = varchar("email", 255).nullable()
+    val phone = varchar("phone", 50).nullable()
+    val inAppStatus = varchar("in_app_status", 50).default("PENDING")
+    val emailStatus = varchar("email_status", 50).default("PENDING")
+    val smsStatus = varchar("sms_status", 50).default("PENDING")
+}
+
+object AlertTenantIdsTable : UUIDTable("alert_tenant_ids") {
+    val alertId = reference("alert_id", AlertsTable, onDelete = ReferenceOption.CASCADE)
+    val tenantId = uuid("tenant_id")
+}
+
+object LeaseExtensionRequestsTable : UUIDTable("lease_extension_requests") {
+    val agencyId = reference("agency_id", AgenciesTable, onDelete = ReferenceOption.CASCADE)
+    val leaseId = reference("lease_id", LeasesTable)
+    val tenantId = reference("tenant_id", TenantsTable)
+    val currentEndDate = date("current_end_date")
+    val proposedEndDate = date("proposed_end_date")
+    val durationMonths = integer("duration_months").nullable()
+    val customEndDate = date("custom_end_date").nullable()
+    val notes = text("notes").nullable()
+    val status = varchar("status", 50).default("Pending")
+    val submittedAt: Column<Instant> = timestamp("submitted_at")
+    val resolvedAt: Column<Instant?> = timestamp("resolved_at").nullable()
+    val resolvedBy = uuid("resolved_by").nullable()
+    val agentNotes = text("agent_notes").nullable()
+}
+
+object ContactInquiriesTable : UUIDTable("contact_inquiries") {
+    val fullName = varchar("full_name", 255)
+    val workEmail = varchar("work_email", 255)
+    val company = varchar("company", 255).nullable()
+    val units = integer("units").nullable()
+    val message = text("message")
     val createdAt: Column<Instant> = timestamp("created_at")
 }

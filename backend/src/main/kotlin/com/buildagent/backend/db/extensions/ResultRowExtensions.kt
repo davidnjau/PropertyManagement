@@ -96,6 +96,9 @@ fun ResultRow.toPayment(): Payment = Payment(
     isAdjustment = this[PaymentsTable.isAdjustment],
     adjustmentReason = this[PaymentsTable.adjustmentReason],
     adjustedPaymentId = this[PaymentsTable.adjustedPaymentId]?.toString(),
+    agentNotes = this[PaymentsTable.agentNotes],
+    voided = this[PaymentsTable.voided],
+    voidedAt = this[PaymentsTable.voidedAt]?.toString(),
     createdAt = this[PaymentsTable.createdAt].toString(),
     updatedAt = this[PaymentsTable.updatedAt].toString()
 )

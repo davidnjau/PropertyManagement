@@ -2,13 +2,14 @@ package com.buildagent.backend.services
 
 import com.buildagent.backend.db.dbQuery
 import com.buildagent.backend.db.extensions.toTenant
-import com.buildagent.backend.db.tables.TenantsTable
-import com.buildagent.shared.models.CreateTenantRequest
-import com.buildagent.shared.models.Tenant
+import com.buildagent.backend.db.tables.*
+import com.buildagent.shared.models.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import java.util.UUID
 
 class TenantService {
@@ -51,6 +52,80 @@ class TenantService {
             it[updatedAt] = now
         }
         TenantsTable.selectAll().where { TenantsTable.id eq id }.first().toTenant()
+    }
+
+    suspend fun getTenantEnriched(agencyId: String, tenantId: String): TenantDetail? = dbQuery {
+        val tenantUUID = UUID.fromString(tenantId)
+        val agencyUUID = UUID.fromString(agencyId)
+        val row = TenantsTable.selectAll().where {
+            (TenantsTable.id eq tenantUUID) and (TenantsTable.agencyId eq agencyUUID)
+        }.firstOrNull() ?: return@dbQuery null
+
+        val tenant = row.toTenant()
+
+        val totalPaid = PaymentsTable
+            .join(LeasesTable, JoinType.INNER, PaymentsTable.leaseId, LeasesTable.id)
+            .select(PaymentsTable.amount.sum())
+            .where {
+                (LeasesTable.tenantId eq tenantUUID) and
+                (PaymentsTable.status eq PaymentStatus.RECEIVED)
+            }
+            .firstOrNull()?.get(PaymentsTable.amount.sum())?.toDouble() ?: 0.0
+
+        val lastPaymentDate = PaymentsTable
+            .join(LeasesTable, JoinType.INNER, PaymentsTable.leaseId, LeasesTable.id)
+            .select(PaymentsTable.paymentDate)
+            .where {
+                (LeasesTable.tenantId eq tenantUUID) and
+                (PaymentsTable.status eq PaymentStatus.RECEIVED)
+            }
+            .orderBy(PaymentsTable.paymentDate, SortOrder.DESC)
+            .firstOrNull()?.get(PaymentsTable.paymentDate)?.toString()
+
+        val overdueCount = PaymentsTable
+            .join(LeasesTable, JoinType.INNER, PaymentsTable.leaseId, LeasesTable.id)
+            .selectAll()
+            .where {
+                (LeasesTable.tenantId eq tenantUUID) and
+                (PaymentsTable.status inList listOf(PaymentStatus.OVERDUE, PaymentStatus.PENDING))
+            }
+            .count().toInt()
+
+        val openMaintenanceCount = MaintenanceRequestsTable.selectAll().where {
+            (MaintenanceRequestsTable.reportedById eq tenantUUID) and
+            (MaintenanceRequestsTable.status inList listOf(
+                MaintenanceStatus.REPORTED, MaintenanceStatus.ASSESSED,
+                MaintenanceStatus.ASSIGNED, MaintenanceStatus.IN_PROGRESS
+            ))
+        }.count().toInt()
+
+        TenantDetail(
+            tenant = tenant,
+            paymentSummary = TenantPaymentSummary(
+                totalPaid = totalPaid,
+                lastPaymentDate = lastPaymentDate,
+                overdueCount = overdueCount
+            ),
+            openMaintenanceCount = openMaintenanceCount
+        )
+    }
+
+    suspend fun deleteTenant(agencyId: String, tenantId: String): Boolean = dbQuery {
+        val tenantUUID = UUID.fromString(tenantId)
+        val hasActiveLease = LeasesTable.selectAll().where {
+            (LeasesTable.tenantId eq tenantUUID) and
+            (LeasesTable.status inList listOf(LeaseStatus.ACTIVE, LeaseStatus.PERIODIC))
+        }.count() > 0
+        if (hasActiveLease) return@dbQuery false
+
+        val now: Instant = Clock.System.now()
+        TenantsTable.update({
+            (TenantsTable.id eq tenantUUID) and (TenantsTable.agencyId eq UUID.fromString(agencyId))
+        }) {
+            it[isActive] = false
+            it[updatedAt] = now
+        }
+        true
     }
 
     suspend fun updateTenant(agencyId: String, tenantId: String, request: CreateTenantRequest): Tenant = dbQuery {

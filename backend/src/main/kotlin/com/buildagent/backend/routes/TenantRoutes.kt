@@ -32,15 +32,25 @@ fun Route.tenantRoutes(tenantService: TenantService) {
             }
             get("/{id}") {
                 val p = call.userPrincipal()
-                val tenant = tenantService.getTenant(p.agencyId, call.parameters["id"]!!)
+                val tenantDetail = tenantService.getTenantEnriched(p.agencyId, call.parameters["id"]!!)
                     ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("error" to "Tenant not found"))
-                call.respond(ApiResponse(data = tenant))
+                call.respond(ApiResponse(data = tenantDetail))
             }
             patch("/{id}") {
                 val p = call.userPrincipal()
                 p.requireRole("ADMIN", "AGENT")
                 val tenant = tenantService.updateTenant(p.agencyId, call.parameters["id"]!!, call.receive<CreateTenantRequest>())
                 call.respond(ApiResponse(data = tenant))
+            }
+            delete("/{id}") {
+                val p = call.userPrincipal()
+                p.requireRole("ADMIN", "AGENT")
+                val deleted = tenantService.deleteTenant(p.agencyId, call.parameters["id"]!!)
+                if (!deleted) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "Cannot delete tenant with an active lease"))
+                } else {
+                    call.respond(HttpStatusCode.NoContent)
+                }
             }
         }
     }

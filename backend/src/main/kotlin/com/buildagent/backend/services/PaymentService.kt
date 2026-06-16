@@ -119,6 +119,84 @@ class PaymentService(private val auditService: AuditService) {
         }
     }
 
+    suspend fun getById(agencyId: UUID, paymentId: UUID): Payment? = dbQuery {
+        PaymentsTable.selectAll()
+            .where { PaymentsTable.id eq paymentId and (PaymentsTable.agencyId eq agencyId) }
+            .singleOrNull()?.toPayment()
+    }
+
+    suspend fun updatePayment(agencyId: UUID, actorId: UUID, paymentId: UUID, req: UpdatePaymentRequest): Payment? {
+        val existing = dbQuery {
+            PaymentsTable.selectAll()
+                .where { PaymentsTable.id eq paymentId and (PaymentsTable.agencyId eq agencyId) }
+                .singleOrNull()
+        } ?: return null
+
+        val reqStatus = req.status
+        val reqAmount = req.amount
+        val reqReference = req.reference
+        val reqAgentNotes = req.agentNotes
+
+        val updated = dbQuery {
+            val now: Instant = Clock.System.now()
+            PaymentsTable.update({ PaymentsTable.id eq paymentId }) {
+                if (reqStatus != null) it[status] = reqStatus
+                if (reqAmount != null) it[amount] = reqAmount.toBigDecimal()
+                if (reqReference != null) it[referenceNo] = reqReference
+                if (reqAgentNotes != null) it[agentNotes] = reqAgentNotes
+                it[updatedAt] = now
+            }
+            PaymentsTable.selectAll().where { PaymentsTable.id eq paymentId }.single().toPayment()
+        }
+
+        auditService.record(
+            agencyId = agencyId,
+            actorId = actorId,
+            action = AuditAction.PAYMENT_ADJUSTED,
+            entityType = "payment",
+            entityId = paymentId,
+            before = mapOf(
+                "status" to existing[PaymentsTable.status].name,
+                "amount" to existing[PaymentsTable.amount].toString()
+            ),
+            after = mapOf(
+                "status" to updated.status.name,
+                "amount" to updated.amount.toString()
+            )
+        )
+
+        return updated
+    }
+
+    suspend fun voidPayment(agencyId: UUID, actorId: UUID, paymentId: UUID): Boolean {
+        val existing = dbQuery {
+            PaymentsTable.selectAll()
+                .where { PaymentsTable.id eq paymentId and (PaymentsTable.agencyId eq agencyId) }
+                .singleOrNull()
+        } ?: return false
+
+        dbQuery {
+            val now: Instant = Clock.System.now()
+            PaymentsTable.update({ PaymentsTable.id eq paymentId }) {
+                it[voided] = true
+                it[voidedAt] = now
+                it[voidedBy] = actorId
+                it[updatedAt] = now
+            }
+        }
+
+        auditService.record(
+            agencyId = agencyId,
+            actorId = actorId,
+            action = AuditAction.UPDATED,
+            entityType = "payment",
+            entityId = paymentId,
+            after = mapOf("voided" to "true")
+        )
+
+        return true
+    }
+
     suspend fun overdue(agencyId: UUID): List<Payment> = dbQuery {
         val graceCutoff = Clock.System.todayIn(TimeZone.currentSystemDefault()).minus(3, DateTimeUnit.DAY)
         PaymentsTable.selectAll().where {
@@ -145,6 +223,9 @@ class PaymentService(private val auditService: AuditService) {
         isAdjustment = this[PaymentsTable.isAdjustment],
         adjustmentReason = this[PaymentsTable.adjustmentReason],
         adjustedPaymentId = this[PaymentsTable.adjustedPaymentId]?.toString(),
+        agentNotes = this[PaymentsTable.agentNotes],
+        voided = this[PaymentsTable.voided],
+        voidedAt = this[PaymentsTable.voidedAt]?.toString(),
         createdAt = this[PaymentsTable.createdAt].toString(),
         updatedAt = this[PaymentsTable.updatedAt].toString()
     )

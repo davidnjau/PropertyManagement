@@ -26,6 +26,18 @@ fun Route.authRoutes(service: AuthService) {
             call.respond(ApiResponse(result))
         }
 
+        post("/signin") {
+            val req = call.receive<LoginRequest>()
+            val result = service.login(req)
+            call.respond(ApiResponse(result))
+        }
+
+        post("/signup") {
+            val req = call.receive<RegisterRequest>()
+            val result = service.register(req)
+            call.respond(HttpStatusCode.Created, ApiResponse(result))
+        }
+
         authenticate("local-auth") {
             get("/me") {
                 val principal = call.principal<AgentPrincipal>()!!

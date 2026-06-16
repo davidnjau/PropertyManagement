@@ -19,6 +19,12 @@ fun backendModule(config: ApplicationConfig, localJwtService: LocalJwtService) =
     single { PaymentService(get()) }
     single { MaintenanceService() }
     single { DashboardService() }
+    single { PaymentMethodsService() }
+    single { DocumentsService() }
+    single { AlertsService() }
+    single { LeaseExtensionService() }
+    single { TenantPortalService() }
+    single { ContactService() }
     single { DomainEventProducer() }
     single { ScheduledJobs() }
 }

@@ -17,6 +17,12 @@ fun Route.dashboardRoutes(service: DashboardService) {
                 val data = service.agentDashboard(UUID.fromString(principal.agencyId))
                 call.respond(ApiResponse(data))
             }
+
+            get("/stats") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val data = service.agentDashboard(UUID.fromString(principal.agencyId))
+                call.respond(ApiResponse(data))
+            }
         }
     }
 }

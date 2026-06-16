@@ -7,6 +7,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import java.util.UUID
 
 class BuildingService {
@@ -52,6 +53,48 @@ class BuildingService {
             it[updatedAt] = now
         }
         BuildingsTable.selectAll().where { BuildingsTable.id eq id }.single().toBuilding()
+    }
+
+    suspend fun update(agencyId: UUID, buildingId: UUID, req: UpdateBuildingRequest): Building? = dbQuery {
+        val existing = BuildingsTable.selectAll()
+            .where { BuildingsTable.id eq buildingId and (BuildingsTable.agencyId eq agencyId) and (BuildingsTable.isActive eq true) }
+            .singleOrNull() ?: return@dbQuery null
+
+        val now: Instant = Clock.System.now()
+        val reqName = req.name
+        val reqAddress = req.address
+        BuildingsTable.update({ BuildingsTable.id eq buildingId }) {
+            if (reqName != null) it[name] = reqName
+            if (reqAddress != null) it[address] = reqAddress
+            it[updatedAt] = now
+        }
+        BuildingsTable
+            .join(ClientsTable, JoinType.LEFT, BuildingsTable.clientId, ClientsTable.id)
+            .selectAll()
+            .where { BuildingsTable.id eq buildingId }
+            .single()
+            .toBuilding(withClient = true)
+    }
+
+    suspend fun delete(agencyId: UUID, buildingId: UUID): Boolean = dbQuery {
+        val unitIds = UnitsTable.selectAll()
+            .where { UnitsTable.buildingId eq buildingId }
+            .map { it[UnitsTable.id].value }
+
+        if (unitIds.isNotEmpty()) {
+            val hasActiveLeases = LeasesTable.selectAll().where {
+                (LeasesTable.unitId inList unitIds) and
+                (LeasesTable.status inList listOf(LeaseStatus.ACTIVE, LeaseStatus.PERIODIC))
+            }.count() > 0
+            if (hasActiveLeases) return@dbQuery false
+        }
+
+        val now: Instant = Clock.System.now()
+        BuildingsTable.update({ BuildingsTable.id eq buildingId and (BuildingsTable.agencyId eq agencyId) }) {
+            it[isActive] = false
+            it[updatedAt] = now
+        }
+        true
     }
 
     suspend fun summary(agencyId: UUID, buildingId: UUID): BuildingSummaryData = dbQuery {
