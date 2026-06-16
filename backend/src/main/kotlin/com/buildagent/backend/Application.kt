@@ -38,6 +38,7 @@ fun Application.module() {
     configureAuthentication(localJwtService)
     configureRouting()
     configureStatusPages()
+    configureSwagger()
 
     val scheduledJobs by inject<ScheduledJobs>()
     scheduledJobs.start()
