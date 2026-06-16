@@ -180,9 +180,13 @@ Returns all tenants for the authenticated agency. Also consumed by the Payments 
     "email": "string",
     "phone": "string",
     "unit": "string",
-    "monthlyRent": 0,
     "buildingId": "string",
-    "buildingName": "string"
+    "buildingName": "string",
+    "monthlyRent": 0,
+    "deposit": 0,
+    "leaseStart": "YYYY-MM-DD",
+    "leaseEnd": "YYYY-MM-DD",
+    "leaseStatus": "Active | Expiring soon | Expired"
   }
 ]
 ```
@@ -191,7 +195,7 @@ Returns all tenants for the authenticated agency. Also consumed by the Payments 
 
 ### POST `/tenants`
 
-Creates a new tenant record.
+Creates a new tenant record together with their initial lease. `leaseStart`, `leaseEnd`, and `monthlyRent` are required; `deposit` is optional.
 
 **Request body:**
 ```json
@@ -200,12 +204,17 @@ Creates a new tenant record.
   "email": "string",
   "phone": "string",
   "unit": "string",
+  "buildingId": "string",
   "monthlyRent": 0,
-  "buildingId": "string"
+  "deposit": 0,
+  "leaseStart": "YYYY-MM-DD",
+  "leaseEnd": "YYYY-MM-DD"
 }
 ```
 
 **Response `201`:** Returns the created tenant object (same shape as list item above).
+
+> **Note:** The backend should derive `leaseStatus` on read from the current date vs `leaseEnd`: `Active` (>30 days remaining), `Expiring soon` (≤30 days), `Expired` (past end date).
 
 ---
 
