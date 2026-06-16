@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import DashboardLayout from './components/DashboardLayout'
+import { PaymentMethodsProvider } from './context/PaymentMethodsContext'
 import Home from './pages/Home'
 import Solutions from './pages/Solutions'
 import Pricing from './pages/Pricing'
@@ -14,9 +15,11 @@ import Tenants from './pages/dashboard/Tenants'
 import Payments from './pages/dashboard/Payments'
 import Maintenance from './pages/dashboard/Maintenance'
 import Documents from './pages/dashboard/Documents'
+import PaymentMethodsAdmin from './pages/dashboard/admin/PaymentMethods'
 
 export default function App() {
   return (
+    <PaymentMethodsProvider>
     <BrowserRouter>
       <Routes>
         {/* Auth — no chrome */}
@@ -30,6 +33,7 @@ export default function App() {
           <Route path="payments" element={<Payments />} />
           <Route path="maintenance" element={<Maintenance />} />
           <Route path="documents" element={<Documents />} />
+          <Route path="admin/payment-methods" element={<PaymentMethodsAdmin />} />
         </Route>
 
         {/* Marketing — navbar + footer */}
@@ -53,5 +57,6 @@ export default function App() {
         />
       </Routes>
     </BrowserRouter>
+    </PaymentMethodsProvider>
   )
 }
