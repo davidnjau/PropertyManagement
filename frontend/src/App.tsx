@@ -18,6 +18,7 @@ import Maintenance from './pages/dashboard/Maintenance'
 import Documents from './pages/dashboard/Documents'
 import PaymentMethodsAdmin from './pages/dashboard/admin/PaymentMethods'
 import Alerts from './pages/dashboard/admin/Alerts'
+import AdminDocuments from './pages/dashboard/admin/Documents'
 import TenantOverview from './pages/tenant/Overview'
 import PayRent from './pages/tenant/PayRent'
 import TenantLease from './pages/tenant/Lease'
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="maintenance" element={<Maintenance />} />
           <Route path="documents" element={<Documents />} />
           <Route path="admin/alerts" element={<Alerts />} />
+          <Route path="admin/documents" element={<AdminDocuments />} />
           <Route path="admin/payment-methods" element={<PaymentMethodsAdmin />} />
         </Route>
 

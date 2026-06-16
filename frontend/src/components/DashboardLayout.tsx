@@ -24,6 +24,7 @@ const workspaceNav = [
 
 const adminNav = [
   { to: '/dashboard/admin/alerts', label: 'Alerts', icon: <Bell size={16} /> },
+  { to: '/dashboard/admin/documents', label: 'Documents', icon: <FileText size={16} /> },
   { to: '/dashboard/admin/payment-methods', label: 'Payment Methods', icon: <Settings size={16} /> },
 ]
 
