@@ -1,19 +1,10 @@
 import { useState } from 'react'
 import { X, Copy } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePaymentMethods } from '../../context/PaymentMethodsContext'
+import { fetchPayments, createPayment } from '../../services/payments'
 
 type MpesaAction = 'initiate' | 'reference' | 'details'
-
-type Payment = {
-  id: number
-  tenant: string
-  amount: number
-  dueDate: string
-  status: string
-  paymentMethod: string
-  bank: string
-  reference: string
-}
 
 const emptyForm = {
   tenant: '',
@@ -52,7 +43,17 @@ export default function Payments() {
   const bankTransfer = methods.find((m) => m.id === 'bank_transfer')
   const enabledBanks = bankTransfer?.banks?.filter((b) => b.enabled) ?? []
 
-  const [payments, setPayments] = useState<Payment[]>([])
+  const qc = useQueryClient()
+  const { data: payments = [], isLoading, isError } = useQuery({
+    queryKey: ['payments'],
+    queryFn: fetchPayments,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createPayment,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['payments'] }),
+  })
+
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
 
@@ -76,9 +77,23 @@ export default function Payments() {
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
     const ref = form.mpesaRef || form.paypalEmail || form.phone || ''
-    setPayments([...payments, { ...form, id: Date.now(), reference: ref }])
-    setForm(emptyForm)
-    setOpen(false)
+    mutation.mutate(
+      {
+        tenant: form.tenant,
+        amount: form.amount,
+        dueDate: form.dueDate,
+        status: form.status,
+        paymentMethod: form.paymentMethod,
+        bank: form.bank,
+        reference: ref,
+      },
+      {
+        onSuccess: () => {
+          setForm(emptyForm)
+          setOpen(false)
+        },
+      },
+    )
   }
 
   const methodLabel = (id: string) => methods.find((m) => m.id === id)?.label ?? id
@@ -135,7 +150,19 @@ export default function Payments() {
             </tr>
           </thead>
           <tbody>
-            {payments.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400">Loading...</p>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center">
+                  <p className="text-sm text-red-500">Failed to load data.</p>
+                </td>
+              </tr>
+            ) : payments.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">No payments logged yet.</td>
               </tr>
@@ -232,7 +259,7 @@ export default function Payments() {
                 )}
               </div>
 
-              {/* ── M-Pesa flow ── */}
+              {/* M-Pesa flow */}
               {form.paymentMethod === 'mpesa' && (
                 <div className="space-y-4">
                   <div>
@@ -305,7 +332,7 @@ export default function Payments() {
                 </div>
               )}
 
-              {/* ── PayPal flow ── */}
+              {/* PayPal flow */}
               {form.paymentMethod === 'paypal' && (
                 <div className="space-y-4">
                   <div>
@@ -330,7 +357,7 @@ export default function Payments() {
                 </div>
               )}
 
-              {/* ── Bank Transfer flow ── */}
+              {/* Bank Transfer flow */}
               {form.paymentMethod === 'bank_transfer' && (
                 <div className="space-y-4">
                   <div>
@@ -374,9 +401,9 @@ export default function Payments() {
                   className="flex-1 border border-gray-200 text-gray-700 text-sm font-medium py-2.5 rounded-md hover:border-gray-400 transition-colors">
                   Cancel
                 </button>
-                <button type="submit" disabled={!canSave}
+                <button type="submit" disabled={!canSave || mutation.isPending}
                   className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Save
+                  {mutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>

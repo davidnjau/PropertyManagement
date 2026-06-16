@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import DashboardLayout from './components/DashboardLayout'
 import TenantLayout from './components/TenantLayout'
 import { PaymentMethodsProvider } from './context/PaymentMethodsContext'
+
+const queryClient = new QueryClient()
 import Home from './pages/Home'
 import Solutions from './pages/Solutions'
 import Pricing from './pages/Pricing'
@@ -27,6 +30,7 @@ import TenantDocuments from './pages/tenant/Documents'
 
 export default function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <PaymentMethodsProvider>
     <BrowserRouter>
       <Routes>
@@ -77,5 +81,6 @@ export default function App() {
       </Routes>
     </BrowserRouter>
     </PaymentMethodsProvider>
+    </QueryClientProvider>
   )
 }

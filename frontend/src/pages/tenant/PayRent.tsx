@@ -1,29 +1,18 @@
 import { useState } from 'react'
 import { CheckCircle, Copy } from 'lucide-react'
-import { usePaymentMethods } from '../../context/PaymentMethodsContext'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchTenantPaymentMethods, fetchTenantPayments, submitTenantPayment } from '../../services/tenantPortal'
 
 type MpesaAction = 'initiate' | 'reference' | 'details'
-
-type Payment = {
-  id: number
-  period: string
-  amount: number
-  method: string
-  bank: string
-  reference: string
-  date: string
-}
 
 const emptyForm = {
   period: '',
   amount: 45000,
   method: '',
   bank: '',
-  // mpesa fields
   phone: '',
   mpesaRef: '',
   mpesaAction: '' as MpesaAction | '',
-  // paypal fields
   paypalEmail: '',
 }
 
@@ -44,13 +33,32 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function PayRent() {
-  const { methods, mpesaConfig, paypalConfig } = usePaymentMethods()
+  const qc = useQueryClient()
+
+  const { data: methodsData } = useQuery({
+    queryKey: ['tenant-payment-methods'],
+    queryFn: fetchTenantPaymentMethods,
+  })
+
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery({
+    queryKey: ['tenant-payments'],
+    queryFn: fetchTenantPayments,
+  })
+
+  const mutation = useMutation({
+    mutationFn: submitTenantPayment,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-payments'] }),
+  })
+
+  const methods = methodsData?.methods ?? []
+  const mpesaConfig = methodsData?.mpesaConfig ?? { businessNo: '—', accountNo: '—', instructions: '' }
+  const paypalConfig = methodsData?.paypalConfig ?? { email: '—', instructions: '' }
+
   const enabledMethods = methods.filter((m) => m.enabled)
   const bankTransfer = methods.find((m) => m.id === 'bank_transfer')
   const enabledBanks = bankTransfer?.banks?.filter((b) => b.enabled) ?? []
 
   const [form, setForm] = useState(emptyForm)
-  const [payments, setPayments] = useState<Payment[]>([])
   const [submitted, setSubmitted] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
@@ -72,23 +80,17 @@ export default function PayRent() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const methodLabel = methods.find((m) => m.id === form.method)?.label ?? form.method
     const ref = form.mpesaRef || form.paypalEmail || form.phone || `REF-${Date.now()}`
-    setPayments([
+    mutation.mutate(
+      { period: form.period, amount: form.amount, method: form.method, bank: form.bank, reference: ref },
       {
-        id: Date.now(),
-        period: form.period,
-        amount: form.amount,
-        method: methodLabel,
-        bank: form.bank,
-        reference: ref,
-        date: new Date().toLocaleDateString('en-KE'),
+        onSuccess: () => {
+          setForm(emptyForm)
+          setSubmitted(true)
+          setTimeout(() => setSubmitted(false), 4000)
+        },
       },
-      ...payments,
-    ])
-    setForm(emptyForm)
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 4000)
+    )
   }
 
   const canSubmit =
@@ -99,7 +101,7 @@ export default function PayRent() {
         ? form.phone.length >= 9
         : form.mpesaAction === 'reference'
         ? form.mpesaRef.length > 0
-        : form.mpesaAction === 'details' // view details — no extra input needed, just allow logging
+        : form.mpesaAction === 'details'
       : form.method === 'paypal'
       ? form.paypalEmail.length > 0
       : form.method === 'bank_transfer'
@@ -163,10 +165,9 @@ export default function PayRent() {
             )}
           </div>
 
-          {/* ── M-Pesa flow ── */}
+          {/* M-Pesa flow */}
           {form.method === 'mpesa' && (
             <div className="space-y-4">
-              {/* Sub-option tabs */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">How would you like to pay?</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -187,7 +188,6 @@ export default function PayRent() {
                 </div>
               </div>
 
-              {/* Initiate Payment — phone number */}
               {form.mpesaAction === 'initiate' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone number</label>
@@ -211,7 +211,6 @@ export default function PayRent() {
                 </div>
               )}
 
-              {/* Provide Reference — confirmation code */}
               {form.mpesaAction === 'reference' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">M-Pesa confirmation code</label>
@@ -228,7 +227,6 @@ export default function PayRent() {
                 </div>
               )}
 
-              {/* View Details — admin-configured paybill info */}
               {form.mpesaAction === 'details' && (
                 <div className="bg-green-50 border border-green-100 rounded-xl p-5 space-y-3">
                   <p className="text-sm font-semibold text-green-800">M-Pesa Payment Details</p>
@@ -262,7 +260,7 @@ export default function PayRent() {
             </div>
           )}
 
-          {/* ── PayPal flow ── */}
+          {/* PayPal flow */}
           {form.method === 'paypal' && (
             <div className="space-y-4">
               <div>
@@ -294,7 +292,7 @@ export default function PayRent() {
             </div>
           )}
 
-          {/* ── Bank Transfer flow ── */}
+          {/* Bank Transfer flow */}
           {form.method === 'bank_transfer' && (
             <div className="space-y-4">
               <div>
@@ -335,16 +333,18 @@ export default function PayRent() {
 
           <button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || mutation.isPending}
             className="w-full bg-gray-900 text-white text-sm font-semibold py-3 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Submit payment
+            {mutation.isPending ? 'Submitting…' : 'Submit payment'}
           </button>
         </form>
       </div>
 
       {/* Payment history */}
-      {payments.length > 0 && (
+      {paymentsLoading ? (
+        <p className="text-sm text-gray-400">Loading...</p>
+      ) : payments.length > 0 ? (
         <div className="border border-gray-100 rounded-xl overflow-hidden">
           <div className="border-b border-gray-100 px-5 py-3">
             <p className="text-sm font-semibold text-gray-900">Payment history</p>
@@ -374,7 +374,7 @@ export default function PayRent() {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

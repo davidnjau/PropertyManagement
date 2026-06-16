@@ -1,22 +1,12 @@
 import { useState } from 'react'
 import { Send, Bell, CheckCircle } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchAlerts, createAlert } from '../../../services/alerts'
 
 type TargetType = 'all' | 'building' | 'tenant' | 'rent_due'
 type Channel = 'in_app' | 'email' | 'sms'
 type RentDueFilter = 'upcoming' | 'overdue' | 'both'
 
-type SentAlert = {
-  id: number
-  sentAt: string
-  target: string
-  channels: string
-  subject: string
-  message: string
-  recipients: number
-  status: 'Sent' | 'Failed'
-}
-
-// Mock data — will come from API
 const MOCK_BUILDINGS = ['Westlands Heights', 'Kilimani Court', 'Lavington Gardens', 'Karen View Estate']
 const MOCK_TENANTS = [
   'Alice Mwangi', 'Brian Otieno', 'Carol Wanjiku', 'David Kamau',
@@ -42,6 +32,18 @@ const statusColors: Record<string, string> = {
 }
 
 export default function Alerts() {
+  const qc = useQueryClient()
+
+  const { data: history = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['alerts'],
+    queryFn: fetchAlerts,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createAlert,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts'] }),
+  })
+
   const [target, setTarget] = useState<TargetType>('all')
   const [building, setBuilding] = useState('')
   const [selectedTenants, setSelectedTenants] = useState<string[]>([])
@@ -50,7 +52,6 @@ export default function Alerts() {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [sent, setSent] = useState(false)
-  const [history, setHistory] = useState<SentAlert[]>([])
 
   function toggleChannel(id: Channel) {
     setChannels((prev) =>
@@ -82,29 +83,27 @@ export default function Alerts() {
 
   function handleSend(e: React.FormEvent) {
     e.preventDefault()
-    const now = new Date().toLocaleString('en-KE', {
-      day: 'numeric', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-    setHistory((prev) => [
+    mutation.mutate(
       {
-        id: Date.now(),
-        sentAt: now,
         target: targetLabel(),
-        channels: channels.map((c) => CHANNEL_OPTIONS.find((o) => o.id === c)?.label ?? c).join(', '),
+        building: target === 'building' ? building : undefined,
+        tenants: target === 'tenant' ? selectedTenants : undefined,
+        rentDueFilter: target === 'rent_due' ? rentDueFilter : undefined,
+        channels,
         subject,
         message,
-        recipients: estimatedRecipients(),
-        status: 'Sent',
       },
-      ...prev,
-    ])
-    setSubject('')
-    setMessage('')
-    setSelectedTenants([])
-    setBuilding('')
-    setSent(true)
-    setTimeout(() => setSent(false), 4000)
+      {
+        onSuccess: () => {
+          setSubject('')
+          setMessage('')
+          setSelectedTenants([])
+          setBuilding('')
+          setSent(true)
+          setTimeout(() => setSent(false), 4000)
+        },
+      },
+    )
   }
 
   const canSend =
@@ -131,7 +130,7 @@ export default function Alerts() {
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
 
-        {/* ── Compose panel ── */}
+        {/* Compose panel */}
         <div className="xl:col-span-2 border border-gray-100 rounded-2xl overflow-hidden">
           <div className="border-b border-gray-100 px-6 py-4 bg-gray-50">
             <p className="text-sm font-semibold text-gray-900">Compose alert</p>
@@ -300,23 +299,27 @@ export default function Alerts() {
 
             <button
               type="submit"
-              disabled={!canSend}
+              disabled={!canSend || mutation.isPending}
               className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold py-3 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Send size={14} />
-              Send alert
+              {mutation.isPending ? 'Sending…' : 'Send alert'}
             </button>
           </form>
         </div>
 
-        {/* ── History panel ── */}
+        {/* History panel */}
         <div className="xl:col-span-3 border border-gray-100 rounded-2xl overflow-hidden">
           <div className="border-b border-gray-100 px-6 py-4 bg-gray-50 flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-900">Sent alerts</p>
             <p className="text-xs text-gray-400">{history.length} total</p>
           </div>
 
-          {history.length === 0 ? (
+          {historyLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+              <p className="text-sm text-gray-400">Loading...</p>
+            </div>
+          ) : history.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6">
               <Bell size={32} className="text-gray-200 mb-4" />
               <p className="text-sm text-gray-400">No alerts sent yet.</p>

@@ -1,10 +1,20 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-
-type Request = { id: number; title: string; description: string; priority: string; building: string }
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchMaintenance, createMaintenanceRequest } from '../../services/maintenance'
 
 export default function Maintenance() {
-  const [requests, setRequests] = useState<Request[]>([])
+  const qc = useQueryClient()
+  const { data: requests = [], isLoading, isError } = useQuery({
+    queryKey: ['maintenance'],
+    queryFn: fetchMaintenance,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createMaintenanceRequest,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['maintenance'] }),
+  })
+
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', priority: 'Medium', building: '' })
 
@@ -14,9 +24,12 @@ export default function Maintenance() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setRequests([...requests, { ...form, id: Date.now() }])
-    setForm({ title: '', description: '', priority: 'Medium', building: '' })
-    setOpen(false)
+    mutation.mutate(form, {
+      onSuccess: () => {
+        setForm({ title: '', description: '', priority: 'Medium', building: '' })
+        setOpen(false)
+      },
+    })
   }
 
   const priorityColors: Record<string, string> = {
@@ -53,7 +66,19 @@ export default function Maintenance() {
             </tr>
           </thead>
           <tbody>
-            {requests.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={3} className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400">Loading...</p>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={3} className="px-5 py-8 text-center">
+                  <p className="text-sm text-red-500">Failed to load data.</p>
+                </td>
+              </tr>
+            ) : requests.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-5 py-8 text-center text-sm text-gray-400">No requests yet.</td>
               </tr>
@@ -111,9 +136,9 @@ export default function Maintenance() {
                 </select>
               </div>
               <div className="flex justify-end pt-2">
-                <button type="submit"
-                  className="bg-gray-200 text-gray-700 text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-300 transition-colors">
-                  Save
+                <button type="submit" disabled={mutation.isPending}
+                  className="bg-gray-200 text-gray-700 text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50">
+                  {mutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>

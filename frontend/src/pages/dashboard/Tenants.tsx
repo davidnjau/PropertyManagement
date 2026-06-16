@@ -1,18 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-
-type Tenant = {
-  id: number
-  fullName: string
-  email: string
-  phone: string
-  unit: string
-  building: string
-  monthlyRent: number
-  deposit: number
-  leaseStart: string
-  leaseEnd: string
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchTenants, createTenant } from '../../services/tenants'
 
 const EMPTY_FORM = {
   fullName: '', email: '', phone: '', unit: '', building: '',
@@ -29,7 +18,17 @@ function leaseStatus(endDate: string): { label: string; color: string } {
 }
 
 export default function Tenants() {
-  const [tenants, setTenants] = useState<Tenant[]>([])
+  const qc = useQueryClient()
+  const { data: tenants = [], isLoading, isError } = useQuery({
+    queryKey: ['tenants'],
+    queryFn: fetchTenants,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createTenant,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenants'] }),
+  })
+
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
@@ -39,14 +38,19 @@ export default function Tenants() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setTenants([...tenants, {
-      ...form,
-      id: Date.now(),
-      monthlyRent: Number(form.monthlyRent),
-      deposit: Number(form.deposit),
-    }])
-    setForm(EMPTY_FORM)
-    setOpen(false)
+    mutation.mutate(
+      {
+        ...form,
+        monthlyRent: Number(form.monthlyRent),
+        deposit: Number(form.deposit),
+      },
+      {
+        onSuccess: () => {
+          setForm(EMPTY_FORM)
+          setOpen(false)
+        },
+      },
+    )
   }
 
   const canSave = form.fullName && form.email && form.unit && form.monthlyRent && form.leaseStart && form.leaseEnd
@@ -82,7 +86,19 @@ export default function Tenants() {
             </tr>
           </thead>
           <tbody>
-            {tenants.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400">Loading...</p>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center">
+                  <p className="text-sm text-red-500">Failed to load data.</p>
+                </td>
+              </tr>
+            ) : tenants.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">No tenants yet.</td>
               </tr>
@@ -233,10 +249,10 @@ export default function Tenants() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!canSave}
+                  disabled={!canSave || mutation.isPending}
                   className="bg-gray-900 text-white text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Save tenant
+                  {mutation.isPending ? 'Saving…' : 'Save tenant'}
                 </button>
               </div>
             </form>

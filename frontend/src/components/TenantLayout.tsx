@@ -21,6 +21,16 @@ const nav = [
 export default function TenantLayout() {
   const navigate = useNavigate()
 
+  const storedUser = localStorage.getItem('ba_user')
+  const user = storedUser ? JSON.parse(storedUser) as { email: string; name: string } : null
+  const displayEmail = user?.email ?? ''
+
+  function handleSignOut() {
+    localStorage.removeItem('ba_token')
+    localStorage.removeItem('ba_user')
+    navigate('/auth')
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-white">
       {/* Sidebar */}
@@ -64,10 +74,10 @@ export default function TenantLayout() {
         <div className="h-14 border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <SquareUser size={14} />
-            tenant@example.com
+            {displayEmail}
           </div>
           <button
-            onClick={() => navigate('/auth')}
+            onClick={handleSignOut}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
             <LogOut size={14} />

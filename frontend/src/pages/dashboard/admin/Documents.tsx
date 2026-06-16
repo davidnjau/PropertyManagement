@@ -1,17 +1,9 @@
 import { useState, useRef } from 'react'
 import { Upload, FileText, X, CheckCircle, Building, Users } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchAdminDocuments, uploadAdminDocument } from '../../../services/adminDocuments'
 
 type Tab = 'tenant' | 'building'
-
-type UploadedDoc = {
-  id: number
-  fileName: string
-  fileSize: string
-  docType: string
-  target: string
-  notes: string
-  uploadedAt: string
-}
 
 const MOCK_TENANTS = [
   'Alice Mwangi', 'Brian Otieno', 'Carol Wanjiku', 'David Kamau',
@@ -59,6 +51,17 @@ const emptyBuildingForm = { building: '', docType: '', notes: '' }
 
 export default function AdminDocuments() {
   const [tab, setTab] = useState<Tab>('tenant')
+  const qc = useQueryClient()
+
+  const { data: docs = [], isLoading: docsLoading } = useQuery({
+    queryKey: ['admin-documents', tab],
+    queryFn: () => fetchAdminDocuments(tab),
+  })
+
+  const mutation = useMutation({
+    mutationFn: uploadAdminDocument,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-documents', tab] }),
+  })
 
   // Tenant upload state
   const [tenantForm, setTenantForm] = useState(emptyTenantForm)
@@ -72,8 +75,6 @@ export default function AdminDocuments() {
   const [buildingDragging, setBuildingDragging] = useState(false)
   const buildingInputRef = useRef<HTMLInputElement>(null)
 
-  // Shared
-  const [docs, setDocs] = useState<UploadedDoc[]>([])
   const [success, setSuccess] = useState(false)
 
   function flashSuccess() {
@@ -81,7 +82,6 @@ export default function AdminDocuments() {
     setTimeout(() => setSuccess(false), 4000)
   }
 
-  // Tenant handlers
   function handleTenantChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setTenantForm({ ...tenantForm, [e.target.name]: e.target.value })
   }
@@ -93,22 +93,21 @@ export default function AdminDocuments() {
   function handleTenantSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!tenantFile) return
-    const now = new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
-    setDocs((prev) => [{
-      id: Date.now(),
-      fileName: tenantFile.name,
-      fileSize: formatBytes(tenantFile.size),
-      docType: tenantForm.docType,
-      target: tenantForm.tenant,
-      notes: tenantForm.notes,
-      uploadedAt: now,
-    }, ...prev])
-    setTenantForm(emptyTenantForm)
-    setTenantFile(null)
-    flashSuccess()
+    const fd = new FormData()
+    fd.append('file', tenantFile)
+    fd.append('docType', tenantForm.docType)
+    fd.append('target', tenantForm.tenant)
+    fd.append('entityType', 'tenant')
+    fd.append('notes', tenantForm.notes)
+    mutation.mutate(fd, {
+      onSuccess: () => {
+        setTenantForm(emptyTenantForm)
+        setTenantFile(null)
+        flashSuccess()
+      },
+    })
   }
 
-  // Building handlers
   function handleBuildingChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setBuildingForm({ ...buildingForm, [e.target.name]: e.target.value })
   }
@@ -120,30 +119,23 @@ export default function AdminDocuments() {
   function handleBuildingSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!buildingFile) return
-    const now = new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
-    setDocs((prev) => [{
-      id: Date.now(),
-      fileName: buildingFile.name,
-      fileSize: formatBytes(buildingFile.size),
-      docType: buildingForm.docType,
-      target: buildingForm.building,
-      notes: buildingForm.notes,
-      uploadedAt: now,
-    }, ...prev])
-    setBuildingForm(emptyBuildingForm)
-    setBuildingFile(null)
-    flashSuccess()
+    const fd = new FormData()
+    fd.append('file', buildingFile)
+    fd.append('docType', buildingForm.docType)
+    fd.append('target', buildingForm.building)
+    fd.append('entityType', 'building')
+    fd.append('notes', buildingForm.notes)
+    mutation.mutate(fd, {
+      onSuccess: () => {
+        setBuildingForm(emptyBuildingForm)
+        setBuildingFile(null)
+        flashSuccess()
+      },
+    })
   }
 
   const tenantCanSave = tenantForm.tenant && tenantForm.docType && tenantFile
   const buildingCanSave = buildingForm.building && buildingForm.docType && buildingFile
-
-  // Filter docs to current tab context
-  const tabDocs = docs.filter((d) =>
-    tab === 'tenant'
-      ? MOCK_TENANTS.includes(d.target)
-      : MOCK_BUILDINGS.includes(d.target)
-  )
 
   return (
     <div className="w-full">
@@ -180,7 +172,7 @@ export default function AdminDocuments() {
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
 
-        {/* ── Upload form ── */}
+        {/* Upload form */}
         <div className="xl:col-span-2 border border-gray-100 rounded-2xl overflow-hidden">
           <div className="border-b border-gray-100 px-6 py-4 bg-gray-50">
             <p className="text-sm font-semibold text-gray-900">
@@ -190,7 +182,6 @@ export default function AdminDocuments() {
 
           {tab === 'tenant' ? (
             <form onSubmit={handleTenantSubmit} className="p-6 space-y-5">
-              {/* Tenant select */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Tenant</label>
                 <select name="tenant" value={tenantForm.tenant} onChange={handleTenantChange}
@@ -200,7 +191,6 @@ export default function AdminDocuments() {
                 </select>
               </div>
 
-              {/* Document type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Document type</label>
                 <select name="docType" value={tenantForm.docType} onChange={handleTenantChange}
@@ -210,7 +200,6 @@ export default function AdminDocuments() {
                 </select>
               </div>
 
-              {/* Drop zone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">File</label>
                 <div
@@ -247,7 +236,6 @@ export default function AdminDocuments() {
                 </div>
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Notes <span className="text-gray-400 font-normal">(optional)</span>
@@ -257,15 +245,14 @@ export default function AdminDocuments() {
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 resize-none placeholder:text-gray-300" />
               </div>
 
-              <button type="submit" disabled={!tenantCanSave}
+              <button type="submit" disabled={!tenantCanSave || mutation.isPending}
                 className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold py-3 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <Upload size={14} />
-                Upload document
+                {mutation.isPending ? 'Uploading…' : 'Upload document'}
               </button>
             </form>
           ) : (
             <form onSubmit={handleBuildingSubmit} className="p-6 space-y-5">
-              {/* Building select */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Building</label>
                 <select name="building" value={buildingForm.building} onChange={handleBuildingChange}
@@ -275,7 +262,6 @@ export default function AdminDocuments() {
                 </select>
               </div>
 
-              {/* Document type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Document type</label>
                 <select name="docType" value={buildingForm.docType} onChange={handleBuildingChange}
@@ -285,7 +271,6 @@ export default function AdminDocuments() {
                 </select>
               </div>
 
-              {/* Drop zone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">File</label>
                 <div
@@ -322,7 +307,6 @@ export default function AdminDocuments() {
                 </div>
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Notes <span className="text-gray-400 font-normal">(optional)</span>
@@ -332,25 +316,29 @@ export default function AdminDocuments() {
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 resize-none placeholder:text-gray-300" />
               </div>
 
-              <button type="submit" disabled={!buildingCanSave}
+              <button type="submit" disabled={!buildingCanSave || mutation.isPending}
                 className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold py-3 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <Upload size={14} />
-                Upload document
+                {mutation.isPending ? 'Uploading…' : 'Upload document'}
               </button>
             </form>
           )}
         </div>
 
-        {/* ── Document list ── */}
+        {/* Document list */}
         <div className="xl:col-span-3 border border-gray-100 rounded-2xl overflow-hidden">
           <div className="border-b border-gray-100 px-6 py-4 bg-gray-50 flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-900">
               Uploaded {tab === 'tenant' ? 'tenant' : 'building'} documents
             </p>
-            <p className="text-xs text-gray-400">{tabDocs.length} file{tabDocs.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-400">{docs.length} file{docs.length !== 1 ? 's' : ''}</p>
           </div>
 
-          {tabDocs.length === 0 ? (
+          {docsLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+              <p className="text-sm text-gray-400">Loading...</p>
+            </div>
+          ) : docs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6">
               <FileText size={32} className="text-gray-200 mb-4" />
               <p className="text-sm text-gray-400">No documents uploaded yet.</p>
@@ -371,7 +359,7 @@ export default function AdminDocuments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tabDocs.map((d) => (
+                  {docs.map((d) => (
                     <tr key={d.id} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="px-5 py-3 font-medium text-gray-900">{d.target}</td>
                       <td className="px-5 py-3">

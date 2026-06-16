@@ -1,10 +1,20 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-
-type Building = { id: number; name: string; address: string; city: string; units: number }
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchBuildings, createBuilding } from '../../services/buildings'
 
 export default function Buildings() {
-  const [buildings, setBuildings] = useState<Building[]>([])
+  const qc = useQueryClient()
+  const { data: buildings = [], isLoading, isError } = useQuery({
+    queryKey: ['buildings'],
+    queryFn: fetchBuildings,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createBuilding,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['buildings'] }),
+  })
+
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ name: '', address: '', city: '', units: 0 })
 
@@ -15,9 +25,12 @@ export default function Buildings() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setBuildings([...buildings, { ...form, id: Date.now() }])
-    setForm({ name: '', address: '', city: '', units: 0 })
-    setOpen(false)
+    mutation.mutate(form, {
+      onSuccess: () => {
+        setForm({ name: '', address: '', city: '', units: 0 })
+        setOpen(false)
+      },
+    })
   }
 
   return (
@@ -49,7 +62,19 @@ export default function Buildings() {
             </tr>
           </thead>
           <tbody>
-            {buildings.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={3} className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400">Loading...</p>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={3} className="px-5 py-8 text-center">
+                  <p className="text-sm text-red-500">Failed to load data.</p>
+                </td>
+              </tr>
+            ) : buildings.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-5 py-8 text-center text-sm text-gray-400">No buildings yet.</td>
               </tr>
@@ -98,9 +123,9 @@ export default function Buildings() {
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
               </div>
               <div className="flex justify-end pt-2">
-                <button type="submit"
-                  className="bg-gray-200 text-gray-700 text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-300 transition-colors">
-                  Save
+                <button type="submit" disabled={mutation.isPending}
+                  className="bg-gray-200 text-gray-700 text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50">
+                  {mutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>

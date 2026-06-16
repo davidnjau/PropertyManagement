@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle } from 'lucide-react'
-
-type Request = { id: number; title: string; description: string; priority: string; date: string; status: string }
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchTenantMaintenance, createTenantMaintenanceRequest } from '../../services/tenantPortal'
 
 const emptyForm = { title: '', description: '', priority: 'Medium' }
 
@@ -12,7 +12,18 @@ const statusColors: Record<string, string> = {
 }
 
 export default function TenantMaintenance() {
-  const [requests, setRequests] = useState<Request[]>([])
+  const qc = useQueryClient()
+
+  const { data: requests = [], isLoading, isError } = useQuery({
+    queryKey: ['tenant-maintenance'],
+    queryFn: fetchTenantMaintenance,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createTenantMaintenanceRequest,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-maintenance'] }),
+  })
+
   const [form, setForm] = useState(emptyForm)
   const [submitted, setSubmitted] = useState(false)
 
@@ -22,18 +33,13 @@ export default function TenantMaintenance() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setRequests([
-      {
-        ...form,
-        id: Date.now(),
-        date: new Date().toLocaleDateString('en-KE'),
-        status: 'Open',
+    mutation.mutate(form, {
+      onSuccess: () => {
+        setForm(emptyForm)
+        setSubmitted(true)
+        setTimeout(() => setSubmitted(false), 4000)
       },
-      ...requests,
-    ])
-    setForm(emptyForm)
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 4000)
+    })
   }
 
   return (
@@ -73,15 +79,19 @@ export default function TenantMaintenance() {
               <option>High</option>
             </select>
           </div>
-          <button type="submit"
-            className="bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-md hover:bg-gray-700 transition-colors">
-            Submit request
+          <button type="submit" disabled={mutation.isPending}
+            className="bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+            {mutation.isPending ? 'Submitting…' : 'Submit request'}
           </button>
         </form>
       </div>
 
       {/* Request history */}
-      {requests.length > 0 && (
+      {isLoading ? (
+        <p className="text-sm text-gray-400">Loading...</p>
+      ) : isError ? (
+        <p className="text-sm text-red-500">Failed to load data.</p>
+      ) : requests.length > 0 ? (
         <div className="border border-gray-100 rounded-xl overflow-hidden">
           <div className="border-b border-gray-100 px-5 py-3">
             <p className="text-sm font-semibold text-gray-900">My requests</p>
@@ -111,7 +121,7 @@ export default function TenantMaintenance() {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

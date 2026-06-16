@@ -1,14 +1,21 @@
 import { Building, Users, CreditCard, Wrench } from 'lucide-react'
 import { Link } from 'react-router-dom'
-
-const stats = [
-  { label: 'Buildings', value: 0, icon: <Building size={16} className="text-gray-400" /> },
-  { label: 'Tenants', value: 0, icon: <Users size={16} className="text-gray-400" /> },
-  { label: 'Payments', value: 0, icon: <CreditCard size={16} className="text-gray-400" /> },
-  { label: 'Open Maintenance', value: 0, icon: <Wrench size={16} className="text-gray-400" /> },
-]
+import { useQuery } from '@tanstack/react-query'
+import { fetchDashboardStats } from '../../services/dashboard'
 
 export default function Overview() {
+  const { data: stats, isLoading, isError } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: fetchDashboardStats,
+  })
+
+  const statCards = [
+    { label: 'Buildings', value: stats?.buildings ?? 0, icon: <Building size={16} className="text-gray-400" /> },
+    { label: 'Tenants', value: stats?.tenants ?? 0, icon: <Users size={16} className="text-gray-400" /> },
+    { label: 'Payments', value: stats?.payments ?? 0, icon: <CreditCard size={16} className="text-gray-400" /> },
+    { label: 'Open Maintenance', value: stats?.openMaintenance ?? 0, icon: <Wrench size={16} className="text-gray-400" /> },
+  ]
+
   return (
     <div className="w-full">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Portfolio overview</h1>
@@ -16,15 +23,25 @@ export default function Overview() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((s) => (
-          <div key={s.label} className="border border-gray-100 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              {s.icon}
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{s.value}</p>
+        {isLoading ? (
+          <div className="col-span-4">
+            <p className="text-sm text-gray-400">Loading...</p>
           </div>
-        ))}
+        ) : isError ? (
+          <div className="col-span-4">
+            <p className="text-sm text-red-500">Failed to load data.</p>
+          </div>
+        ) : (
+          statCards.map((s) => (
+            <div key={s.label} className="border border-gray-100 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-gray-500">{s.label}</p>
+                {s.icon}
+              </div>
+              <p className="text-3xl font-bold text-gray-900">{s.value}</p>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Get started */}
