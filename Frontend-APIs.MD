@@ -15,7 +15,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 3. [Buildings](#3-buildings) (create + admin management)
 4. [Tenants](#4-tenants) (create + admin management)
 5. [Payments](#5-payments) (log + admin management)
-6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
+6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin) (config + management)
 7. [Maintenance Requests](#7-maintenance-requests) (create + admin management)
 8. [Documents — Admin Upload](#8-documents--admin-upload) (upload + management)
 9. [Alerts (Admin)](#9-alerts-admin) (send + management)
@@ -486,11 +486,19 @@ Voids (soft-deletes) a payment record. Used to reverse an incorrectly logged ent
 
 **Pages:** `src/pages/dashboard/admin/PaymentMethods.tsx`, consumed via `src/context/PaymentMethodsContext.tsx`
 
-The frontend currently manages payment method config in React context (in-memory only). These endpoints are needed to persist config across sessions and share it with the tenant portal.
+The frontend currently manages payment method config in React context (in-memory only). These endpoints persist config across sessions and make it available to the tenant portal via `GET /tenant/payment-methods`.
+
+The page has three distinct sections:
+1. **Channels** — enable/disable M-Pesa, PayPal, Bank Transfer
+2. **M-Pesa config** — paybill number, account number, instructions (shown when M-Pesa is enabled)
+3. **PayPal config** — receiving email, instructions (shown when PayPal is enabled)
+4. **Kenyan Banks list** — 18 banks each with an individual toggle (shown when Bank Transfer is enabled)
+
+---
 
 ### GET `/admin/payment-methods`
 
-Returns the current payment method configuration for the agency.
+Returns the full payment method configuration for the agency. This is the initialisation call for `PaymentMethodsContext` on app load, and is also called by `GET /tenant/payment-methods`.
 
 **Response `200`:**
 ```json
@@ -515,24 +523,31 @@ Returns the current payment method configuration for the agency.
 }
 ```
 
+> The `banks` array is always returned in full (all 18 Kenyan banks), each with its current `enabled` state. The UI shows a count of enabled banks alongside the Bank Transfer toggle.
+
 ---
 
 ### PUT `/admin/payment-methods/:methodId/toggle`
 
-Enable or disable a payment method (`mpesa`, `paypal`, `bank_transfer`).
+Enable or disable a top-level payment method. `:methodId` is one of `mpesa`, `paypal`, `bank_transfer`.
+
+Disabling a method hides it immediately from the tenant Pay Rent page and the agent Payments modal. Any in-flight payments already logged under that method are unaffected.
 
 **Request body:**
 ```json
 { "enabled": true }
 ```
 
-**Response `200`:** Returns updated method object `{ "id": "string", "enabled": true }`.
+**Response `200`:**
+```json
+{ "id": "string", "label": "string", "enabled": true }
+```
 
 ---
 
 ### PUT `/admin/payment-methods/mpesa/config`
 
-Update M-Pesa payment details shown to tenants.
+Saves the M-Pesa paybill details displayed to tenants on the Pay Rent page and in the agent Payments modal (View Details action).
 
 **Request body:**
 ```json
@@ -543,13 +558,19 @@ Update M-Pesa payment details shown to tenants.
 }
 ```
 
-**Response `200`:** Returns the updated config object.
+| Field | Type | Notes |
+|---|---|---|
+| `businessNo` | string | Safaricom paybill / till number |
+| `accountNo` | string | Account reference shown to the tenant (e.g. unit number) |
+| `instructions` | string | Optional free-text instructions rendered below the payment details card |
+
+**Response `200`:** Returns the updated M-Pesa config object (same shape as request body).
 
 ---
 
 ### PUT `/admin/payment-methods/paypal/config`
 
-Update PayPal payment details shown to tenants.
+Saves the PayPal receiving details displayed to tenants on the Pay Rent page.
 
 **Request body:**
 ```json
@@ -559,20 +580,47 @@ Update PayPal payment details shown to tenants.
 }
 ```
 
-**Response `200`:** Returns the updated config object.
+| Field | Type | Notes |
+|---|---|---|
+| `email` | string | PayPal email address the agency receives payments at |
+| `instructions` | string | Optional free-text instructions rendered below the payment details card |
+
+**Response `200`:** Returns the updated PayPal config object (same shape as request body).
 
 ---
 
 ### PUT `/admin/payment-methods/banks/:bankId/toggle`
 
-Enable or disable an individual bank under Bank Transfer.
+Enable or disable a single bank in the Bank Transfer list. `:bankId` corresponds to the `id` values returned in the `banks` array from `GET /admin/payment-methods`.
+
+Only enabled banks appear in the bank dropdown on the tenant Pay Rent page and in the agent Payments modal.
 
 **Request body:**
 ```json
 { "enabled": true }
 ```
 
-**Response `200`:** Returns updated bank object `{ "id": "string", "name": "string", "enabled": true }`.
+**Response `200`:**
+```json
+{ "id": "string", "name": "string", "enabled": true }
+```
+
+---
+
+### PUT `/admin/payment-methods/banks`
+
+Bulk-updates the enabled state for multiple banks in a single request. Useful for enabling/disabling all banks at once without 18 individual calls.
+
+**Request body:**
+```json
+{
+  "banks": [
+    { "id": "string", "enabled": true }
+  ]
+}
+```
+
+**Response `200`:** Returns the full updated `banks` array (same shape as in `GET /admin/payment-methods`).
 
 ---
 
@@ -1254,7 +1302,12 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `POST /admin/alerts` | Yes | No | No |
 | `GET /admin/alerts/:id` | Yes | Yes | No |
 | `DELETE /admin/alerts/:id` | Yes | No | No |
-| `/admin/payment-methods/*` | Yes | No | No |
+| `GET /admin/payment-methods` | Yes | Yes | No |
+| `PUT /admin/payment-methods/:methodId/toggle` | Yes | No | No |
+| `PUT /admin/payment-methods/mpesa/config` | Yes | No | No |
+| `PUT /admin/payment-methods/paypal/config` | Yes | No | No |
+| `PUT /admin/payment-methods/banks/:bankId/toggle` | Yes | No | No |
+| `PUT /admin/payment-methods/banks` (bulk) | Yes | No | No |
 | `/admin/lease-extension-requests/*` | Yes | Yes | No |
 | `/tenant/*` | No | No | Yes |
 | `/contact/inquiries` | Public | Public | Public |
