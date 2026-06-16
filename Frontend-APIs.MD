@@ -14,7 +14,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 2. [Dashboard — Stats](#2-dashboard--stats)
 3. [Buildings](#3-buildings)
 4. [Tenants](#4-tenants)
-5. [Payments](#5-payments)
+5. [Payments](#5-payments) (log + admin management)
 6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
 7. [Maintenance Requests](#7-maintenance-requests) (create + admin management)
 8. [Documents — Admin Upload](#8-documents--admin-upload)
@@ -221,11 +221,13 @@ Creates a new tenant record together with their initial lease. `leaseStart`, `le
 
 ## 5. Payments
 
-**Page:** `src/pages/dashboard/Payments.tsx`
+**Pages:** `src/pages/dashboard/Payments.tsx`, `src/pages/tenant/PayRent.tsx`
 
 ### GET `/payments`
 
-Returns the payment ledger for the authenticated agency.
+Returns the full payment ledger for the authenticated agency. Supports filtering for the ledger table.
+
+**Query params:** `?status=Paid|Pending|Overdue` `&tenantId=string` `&method=mpesa|paypal|bank_transfer` `&from=YYYY-MM-DD` `&to=YYYY-MM-DD`
 
 **Response `200`:**
 ```json
@@ -236,42 +238,98 @@ Returns the payment ledger for the authenticated agency.
     "tenantName": "string",
     "amount": 0,
     "method": "mpesa | paypal | bank_transfer",
+    "mpesaAction": "initiate | reference | details | null",
     "bank": "string | null",
     "reference": "string",
     "dueDate": "YYYY-MM-DD",
+    "paidAt": "ISO 8601 | null",
     "status": "Paid | Pending | Overdue",
+    "loggedBy": "string",
     "createdAt": "ISO 8601"
   }
 ]
 ```
 
+> `loggedBy` is the `user_id` of the agent who recorded the payment. `paidAt` is set server-side when `status` is `"Paid"`.
+
 ---
 
 ### POST `/payments`
 
-Logs a new payment. The `reference` field is derived from the payment method:
-- M-Pesa Initiate: phone number
-- M-Pesa Reference: confirmation code
-- PayPal: tenant PayPal email
-- Bank Transfer: bank name
+Logs a new payment against a tenant. The `reference` stored on the record is derived from the payment method action:
+- **M-Pesa Initiate** → tenant phone number (STK push sent)
+- **M-Pesa Reference** → confirmation code entered by the agent
+- **M-Pesa Details** → no reference captured (informational view only)
+- **PayPal** → tenant's PayPal email
+- **Bank Transfer** → bank name
 
 **Request body:**
 ```json
 {
   "tenantId": "string",
   "amount": 0,
+  "dueDate": "YYYY-MM-DD",
+  "status": "Paid | Pending | Overdue",
   "method": "mpesa | paypal | bank_transfer",
   "mpesaAction": "initiate | reference | details | null",
   "phone": "string | null",
   "confirmationCode": "string | null",
   "paypalEmail": "string | null",
-  "bankId": "string | null",
-  "dueDate": "YYYY-MM-DD",
-  "status": "Paid | Pending | Overdue"
+  "bankId": "string | null"
 }
 ```
 
 **Response `201`:** Returns the created payment object (same shape as GET list item).
+
+---
+
+### GET `/payments/:id`
+
+Returns a single payment record by ID.
+
+**Response `200`:** Same shape as a single item in the list response above.
+
+---
+
+### PATCH `/payments/:id`
+
+Updates a payment record. Used by agents/admins to correct status, amount, or reference after the fact.
+
+**Request body (all fields optional — send only what is changing):**
+```json
+{
+  "status": "Paid | Pending | Overdue",
+  "amount": 0,
+  "dueDate": "YYYY-MM-DD",
+  "reference": "string",
+  "agentNotes": "string | null"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `status` | string | Changing to `"Paid"` sets `paidAt` server-side |
+| `amount` | number | Correction to a mis-logged amount |
+| `dueDate` | string | Correction to the due date |
+| `reference` | string | Correction to the reference/confirmation code |
+| `agentNotes` | string \| null | Internal note attached to the change for audit trail |
+
+**Response `200`:** Returns the full updated payment object.
+
+> **Immutability note:** Per the data model, all financial mutations must append a row to `audit_events` with `actor_id`, `action`, `entity_type: "payment"`, `entity_id`, and `diff_json`. PATCH should never silently overwrite — the original values must be preserved in the audit log.
+
+---
+
+### DELETE `/payments/:id`
+
+Voids (soft-deletes) a payment record. Used to reverse an incorrectly logged entry.
+
+**Response `200`:**
+```json
+{ "id": "string", "voided": true, "voidedAt": "ISO 8601", "voidedBy": "string" }
+```
+
+> Voided records should remain in the ledger with a `voided` flag rather than being hard-deleted, to preserve the audit trail.
 
 ---
 
@@ -902,7 +960,10 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `/dashboard/stats` | Yes | Yes | No |
 | `/buildings` | Yes | Yes | No |
 | `/tenants` | Yes | Yes | No |
-| `/payments` | Yes | Yes | No |
+| `GET /payments` | Yes | Yes | No |
+| `POST /payments` | Yes | Yes | No |
+| `PATCH /payments/:id` | Yes | Yes | No |
+| `DELETE /payments/:id` | Yes | No | No |
 | `GET /maintenance-requests` | Yes | Yes | No |
 | `POST /maintenance-requests` | Yes | Yes | No |
 | `PATCH /maintenance-requests/:id` | Yes | Yes | No |
