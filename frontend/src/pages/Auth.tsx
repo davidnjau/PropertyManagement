@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2 } from 'lucide-react'
 
+type Role = 'agent' | 'tenant'
+
 export default function Auth() {
   const [tab, setTab] = useState<'signin' | 'signup'>('signin')
+  const [role, setRole] = useState<Role>('agent')
   const [form, setForm] = useState({ email: '', password: '', name: '' })
   const navigate = useNavigate()
 
@@ -13,7 +16,7 @@ export default function Auth() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    navigate('/dashboard')
+    navigate(role === 'tenant' ? '/tenant' : '/dashboard')
   }
 
   return (
@@ -27,24 +30,37 @@ export default function Auth() {
         <h1 className="text-lg font-bold text-gray-900 mb-1">Welcome</h1>
         <p className="text-sm text-gray-500 mb-6">Sign in or create your workspace.</p>
 
-        {/* Tab toggle */}
+        {/* Sign in / Sign up toggle */}
+        <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
+          {(['signin', 'signup'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 text-sm font-medium py-2 rounded-md transition-colors ${
+                tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t === 'signin' ? 'Sign in' : 'Sign up'}
+            </button>
+          ))}
+        </div>
+
+        {/* Role selector */}
         <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
-          <button
-            onClick={() => setTab('signin')}
-            className={`flex-1 text-sm font-medium py-2 rounded-md transition-colors ${
-              tab === 'signin' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Sign in
-          </button>
-          <button
-            onClick={() => setTab('signup')}
-            className={`flex-1 text-sm font-medium py-2 rounded-md transition-colors ${
-              tab === 'signup' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Sign up
-          </button>
+          {([
+            { value: 'agent', label: 'Agent / Admin' },
+            { value: 'tenant', label: 'Tenant' },
+          ] as { value: Role; label: string }[]).map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setRole(r.value)}
+              className={`flex-1 text-sm font-medium py-2 rounded-md transition-colors ${
+                role === r.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
