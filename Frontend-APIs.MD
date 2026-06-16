@@ -12,7 +12,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 
 1. [Authentication](#1-authentication)
 2. [Dashboard — Stats](#2-dashboard--stats)
-3. [Buildings](#3-buildings)
+3. [Buildings](#3-buildings) (create + admin management)
 4. [Tenants](#4-tenants)
 5. [Payments](#5-payments) (log + admin management)
 6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
@@ -122,6 +122,8 @@ All values are scoped to the `agency_id` in the JWT.
 
 Returns all buildings for the authenticated agency. Also consumed by the Tenants page, Maintenance page, Alerts page, and admin Documents page to populate dropdown selectors.
 
+**Query params:** `?city=string`
+
 **Response `200`:**
 ```json
 [
@@ -130,10 +132,15 @@ Returns all buildings for the authenticated agency. Also consumed by the Tenants
     "name": "string",
     "address": "string",
     "city": "string",
-    "units": 0
+    "units": 0,
+    "occupiedUnits": 0,
+    "vacantUnits": 0,
+    "createdAt": "ISO 8601"
   }
 ]
 ```
+
+> `occupiedUnits` and `vacantUnits` are derived server-side from active leases. `units` is the total capacity set at creation.
 
 ---
 
@@ -151,16 +158,76 @@ Creates a new building.
 }
 ```
 
-**Response `201`:**
+**Response `201`:** Returns the created building object (same shape as GET list item).
+
+---
+
+### GET `/buildings/:id`
+
+Returns a single building by ID, including a summary of its units and current tenants.
+
+**Response `200`:**
 ```json
 {
   "id": "string",
   "name": "string",
   "address": "string",
   "city": "string",
+  "units": 0,
+  "occupiedUnits": 0,
+  "vacantUnits": 0,
+  "createdAt": "ISO 8601",
+  "tenants": [
+    {
+      "id": "string",
+      "fullName": "string",
+      "unit": "string",
+      "leaseEnd": "YYYY-MM-DD",
+      "leaseStatus": "Active | Expiring soon | Expired"
+    }
+  ]
+}
+```
+
+---
+
+### PATCH `/buildings/:id`
+
+Updates building details. Used by agents/admins to correct or update a building's information.
+
+**Request body (all fields optional — send only what is changing):**
+```json
+{
+  "name": "string",
+  "address": "string",
+  "city": "string",
   "units": 0
 }
 ```
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | string | Building display name |
+| `address` | string | Street address |
+| `city` | string | City |
+| `units` | number | Total unit capacity — must be ≥ current `occupiedUnits` |
+
+**Response `200`:** Returns the full updated building object.
+
+> **Constraint:** `units` cannot be reduced below the current number of occupied units. The backend should return a `422` with a descriptive error if this is violated.
+
+---
+
+### DELETE `/buildings/:id`
+
+Deletes a building record. Only permitted when the building has no active tenants or open maintenance requests.
+
+**Response `200`:**
+```json
+{ "id": "string", "deleted": true }
+```
+
+> The backend should return `409 Conflict` if the building still has active leases or unresolved maintenance requests, with a message indicating which constraint is blocking deletion.
 
 ---
 
@@ -958,7 +1025,11 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 |---|---|---|---|
 | `/auth/*` | Yes | Yes | Yes |
 | `/dashboard/stats` | Yes | Yes | No |
-| `/buildings` | Yes | Yes | No |
+| `GET /buildings` | Yes | Yes | No |
+| `POST /buildings` | Yes | Yes | No |
+| `GET /buildings/:id` | Yes | Yes | No |
+| `PATCH /buildings/:id` | Yes | Yes | No |
+| `DELETE /buildings/:id` | Yes | No | No |
 | `/tenants` | Yes | Yes | No |
 | `GET /payments` | Yes | Yes | No |
 | `POST /payments` | Yes | Yes | No |
