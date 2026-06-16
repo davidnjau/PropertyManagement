@@ -9,7 +9,7 @@ const docs = [
 
 export default function TenantDocuments() {
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Documents</h1>
       <p className="text-sm text-gray-500 mb-8">Your lease documents and notices.</p>
 

@@ -58,7 +58,7 @@ export default function Payments() {
     methods.find((m) => m.id === id)?.label ?? id
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Payments</h1>
