@@ -13,7 +13,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 1. [Authentication](#1-authentication)
 2. [Dashboard — Stats](#2-dashboard--stats)
 3. [Buildings](#3-buildings) (create + admin management)
-4. [Tenants](#4-tenants)
+4. [Tenants](#4-tenants) (create + admin management)
 5. [Payments](#5-payments) (log + admin management)
 6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
 7. [Maintenance Requests](#7-maintenance-requests) (create + admin management)
@@ -239,6 +239,8 @@ Deletes a building record. Only permitted when the building has no active tenant
 
 Returns all tenants for the authenticated agency. Also consumed by the Payments modal, Alerts compose panel, and admin Documents page.
 
+**Query params:** `?buildingId=string` `&leaseStatus=Active|Expiring soon|Expired` `&search=string` (name/email prefix match)
+
 **Response `200`:**
 ```json
 [
@@ -254,7 +256,8 @@ Returns all tenants for the authenticated agency. Also consumed by the Payments 
     "deposit": 0,
     "leaseStart": "YYYY-MM-DD",
     "leaseEnd": "YYYY-MM-DD",
-    "leaseStatus": "Active | Expiring soon | Expired"
+    "leaseStatus": "Active | Expiring soon | Expired",
+    "createdAt": "ISO 8601"
   }
 ]
 ```
@@ -280,9 +283,88 @@ Creates a new tenant record together with their initial lease. `leaseStart`, `le
 }
 ```
 
-**Response `201`:** Returns the created tenant object (same shape as list item above).
+**Response `201`:** Returns the created tenant object (same shape as GET list item).
 
 > **Note:** The backend should derive `leaseStatus` on read from the current date vs `leaseEnd`: `Active` (>30 days remaining), `Expiring soon` (≤30 days), `Expired` (past end date).
+
+---
+
+### GET `/tenants/:id`
+
+Returns a single tenant by ID with their full lease and payment history summary.
+
+**Response `200`:**
+```json
+{
+  "id": "string",
+  "fullName": "string",
+  "email": "string",
+  "phone": "string",
+  "unit": "string",
+  "buildingId": "string",
+  "buildingName": "string",
+  "monthlyRent": 0,
+  "deposit": 0,
+  "leaseStart": "YYYY-MM-DD",
+  "leaseEnd": "YYYY-MM-DD",
+  "leaseStatus": "Active | Expiring soon | Expired",
+  "createdAt": "ISO 8601",
+  "paymentSummary": {
+    "totalPaid": 0,
+    "lastPaymentDate": "ISO 8601 | null",
+    "overdueCount": 0
+  },
+  "openMaintenanceCount": 0
+}
+```
+
+---
+
+### PATCH `/tenants/:id`
+
+Updates a tenant's contact details or lease terms. Used by agents/admins to correct information or adjust rent.
+
+**Request body (all fields optional — send only what is changing):**
+```json
+{
+  "fullName": "string",
+  "email": "string",
+  "phone": "string",
+  "unit": "string",
+  "buildingId": "string",
+  "monthlyRent": 0,
+  "deposit": 0,
+  "leaseStart": "YYYY-MM-DD",
+  "leaseEnd": "YYYY-MM-DD"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `fullName` | string | Correct a name spelling |
+| `email` | string | Must remain unique within the agency |
+| `phone` | string | Contact number update |
+| `unit` | string | Unit reassignment within the same building |
+| `buildingId` | string | Transfer to a different building |
+| `monthlyRent` | number | Rent adjustment — takes effect from next billing cycle |
+| `deposit` | number | Deposit correction |
+| `leaseStart` | string | Correction to lease start date |
+| `leaseEnd` | string | Direct lease end date update (distinct from an extension request) |
+
+**Response `200`:** Returns the full updated tenant object.
+
+---
+
+### DELETE `/tenants/:id`
+
+Removes a tenant record. Only permitted when the tenant has no active lease and no outstanding payments.
+
+**Response `200`:**
+```json
+{ "id": "string", "deleted": true }
+```
+
+> The backend should return `409 Conflict` if the tenant has an active lease or unresolved overdue payments, with a message indicating the blocking constraint. For move-outs, consider a soft-delete (`archivedAt`) to preserve payment and maintenance history.
 
 ---
 
@@ -1030,6 +1112,11 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `GET /buildings/:id` | Yes | Yes | No |
 | `PATCH /buildings/:id` | Yes | Yes | No |
 | `DELETE /buildings/:id` | Yes | No | No |
+| `GET /tenants` | Yes | Yes | No |
+| `POST /tenants` | Yes | Yes | No |
+| `GET /tenants/:id` | Yes | Yes | No |
+| `PATCH /tenants/:id` | Yes | Yes | No |
+| `DELETE /tenants/:id` | Yes | No | No |
 | `/tenants` | Yes | Yes | No |
 | `GET /payments` | Yes | Yes | No |
 | `POST /payments` | Yes | Yes | No |
