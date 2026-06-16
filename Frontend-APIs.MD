@@ -16,7 +16,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 4. [Tenants](#4-tenants)
 5. [Payments](#5-payments)
 6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
-7. [Maintenance Requests](#7-maintenance-requests)
+7. [Maintenance Requests](#7-maintenance-requests) (create + admin management)
 8. [Documents — Admin Upload](#8-documents--admin-upload)
 9. [Alerts (Admin)](#9-alerts-admin)
 10. [Tenant — Overview](#10-tenant--overview)
@@ -371,11 +371,13 @@ Enable or disable an individual bank under Bank Transfer.
 
 ## 7. Maintenance Requests
 
-**Page:** `src/pages/dashboard/Maintenance.tsx`
+**Pages:** `src/pages/dashboard/Maintenance.tsx`, `src/pages/tenant/Maintenance.tsx`
 
 ### GET `/maintenance-requests`
 
-Returns all maintenance requests for the authenticated agency.
+Returns all maintenance requests for the authenticated agency. Supports optional filtering.
+
+**Query params:** `?status=Open|In Progress|Resolved` `&priority=Low|Medium|High` `&buildingId=string`
 
 **Response `200`:**
 ```json
@@ -387,17 +389,24 @@ Returns all maintenance requests for the authenticated agency.
     "priority": "Low | Medium | High",
     "buildingId": "string",
     "buildingName": "string",
+    "tenantId": "string | null",
+    "tenantName": "string | null",
+    "source": "agent | tenant",
     "status": "Open | In Progress | Resolved",
+    "assignedTo": "string | null",
+    "resolvedAt": "ISO 8601 | null",
     "createdAt": "ISO 8601"
   }
 ]
 ```
 
+> `source` distinguishes agent-created requests from tenant-submitted ones. `tenantId`/`tenantName` are populated when `source` is `"tenant"`.
+
 ---
 
 ### POST `/maintenance-requests`
 
-Creates a new maintenance request (agent-initiated).
+Creates a new maintenance request (agent-initiated). For tenant-submitted requests see `POST /tenant/maintenance`.
 
 **Request body:**
 ```json
@@ -409,7 +418,42 @@ Creates a new maintenance request (agent-initiated).
 }
 ```
 
-**Response `201`:** Returns created request object (same shape as GET list item).
+**Response `201`:** Returns the created request object (same shape as GET list item, with `source: "agent"`).
+
+---
+
+### GET `/maintenance-requests/:id`
+
+Returns a single maintenance request by ID.
+
+**Response `200`:** Same shape as a single item in the list response above.
+
+---
+
+### PATCH `/maintenance-requests/:id`
+
+Updates the status, priority, or assignee of a maintenance request. Used by agents/admins to progress a request through its lifecycle.
+
+**Request body (all fields optional — send only what is changing):**
+```json
+{
+  "status": "Open | In Progress | Resolved",
+  "priority": "Low | Medium | High",
+  "assignedTo": "string | null",
+  "agentNotes": "string | null"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `status` | string | Moving to `"Resolved"` sets `resolvedAt` server-side |
+| `priority` | string | Agent can re-classify priority after review |
+| `assignedTo` | string \| null | User ID of the staff member handling the request |
+| `agentNotes` | string \| null | Internal notes or update message visible to the tenant |
+
+**Response `200`:** Returns the full updated request object.
+
+> **Side effect on resolve:** When `status` is set to `"Resolved"`, the backend should set `resolvedAt` to the current timestamp and decrement the `openMaintenance` count returned by `GET /dashboard/stats`.
 
 ---
 
@@ -859,7 +903,11 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `/buildings` | Yes | Yes | No |
 | `/tenants` | Yes | Yes | No |
 | `/payments` | Yes | Yes | No |
-| `/maintenance-requests` | Yes | Yes | No |
+| `GET /maintenance-requests` | Yes | Yes | No |
+| `POST /maintenance-requests` | Yes | Yes | No |
+| `PATCH /maintenance-requests/:id` | Yes | Yes | No |
+| `GET /tenant/maintenance` | No | No | Yes |
+| `POST /tenant/maintenance` | No | No | Yes |
 | `/admin/*` | Yes | No | No |
 | `/admin/lease-extension-requests/*` | Yes | Yes | No |
 | `/tenant/*` | No | No | Yes |
