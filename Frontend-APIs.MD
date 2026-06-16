@@ -574,6 +574,8 @@ Returns the tenant's current active lease.
 
 Submits a lease extension request from the tenant.
 
+The form offers preset durations (3, 6, 12, 24 months) or a custom end date. Exactly one of `durationMonths` or `customEndDate` will be non-null per request.
+
 **Request body:**
 ```json
 {
@@ -584,15 +586,25 @@ Submits a lease extension request from the tenant.
 }
 ```
 
+| Field | Type | Notes |
+|---|---|---|
+| `leaseId` | string | ID of the active lease being extended |
+| `durationMonths` | number \| null | One of `3`, `6`, `12`, `24` — null when custom date is used |
+| `customEndDate` | string \| null | ISO date — only set when the tenant picks "Custom date"; null otherwise |
+| `notes` | string \| null | Optional free-text from the tenant |
+
 **Response `201`:**
 ```json
 {
   "id": "string",
+  "leaseId": "string",
   "status": "Pending",
   "proposedEndDate": "YYYY-MM-DD",
   "submittedAt": "ISO 8601"
 }
 ```
+
+> **Note:** The backend should compute `proposedEndDate` from the current `leaseEnd` + `durationMonths`, or use `customEndDate` directly. The request sits in a `Pending` state until an agent approves or rejects it.
 
 ---
 
