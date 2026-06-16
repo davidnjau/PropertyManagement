@@ -17,7 +17,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 5. [Payments](#5-payments) (log + admin management)
 6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
 7. [Maintenance Requests](#7-maintenance-requests) (create + admin management)
-8. [Documents — Admin Upload](#8-documents--admin-upload)
+8. [Documents — Admin Upload](#8-documents--admin-upload) (upload + management)
 9. [Alerts (Admin)](#9-alerts-admin)
 10. [Tenant — Overview](#10-tenant--overview)
 11. [Tenant — Lease](#11-tenant--lease)
@@ -666,13 +666,13 @@ Updates the status, priority, or assignee of a maintenance request. Used by agen
 
 ## 8. Documents — Admin Upload
 
-**Page:** `src/pages/dashboard/admin/Documents.tsx`
+**Pages:** `src/pages/dashboard/admin/Documents.tsx`, `src/pages/tenant/Documents.tsx` (read)
 
 ### GET `/admin/documents`
 
-Returns all documents uploaded by the admin, optionally filtered by tab.
+Returns all documents uploaded by the admin. The frontend tabs by `targetType` so filtering by it is the primary use case.
 
-**Query params:** `?type=tenant|building`
+**Query params:** `?targetType=tenant|building` `&targetId=string` `&docType=string`
 
 **Response `200`:**
 ```json
@@ -685,12 +685,16 @@ Returns all documents uploaded by the admin, optionally filtered by tab.
     "docType": "string",
     "fileName": "string",
     "fileSize": 0,
+    "mimeType": "string",
     "notes": "string | null",
+    "uploadedBy": "string",
     "uploadedAt": "ISO 8601",
     "fileUrl": "string"
   }
 ]
 ```
+
+**Accepted file types:** PDF, DOC, DOCX, JPG, PNG — max 10 MB per file.
 
 **Tenant `docType` values:** `National ID`, `Passport`, `Driving License`, `KRA PIN Certificate`, `Lease Agreement`, `Employment Letter`, `Bank Statement`, `Move-in Inspection Report`, `Reference Letter`, `Utility Bill`, `Other`
 
@@ -703,15 +707,59 @@ Returns all documents uploaded by the admin, optionally filtered by tab.
 Uploads a document for a tenant or building. Send as `multipart/form-data`.
 
 **Form fields:**
-| Field | Type | Notes |
-|---|---|---|
-| `file` | File | The document file |
-| `targetType` | string | `"tenant"` or `"building"` |
-| `targetId` | string | ID of the tenant or building |
-| `docType` | string | One of the valid doc type values above |
-| `notes` | string | Optional |
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `file` | File | Yes | PDF, DOC, DOCX, JPG, PNG — max 10 MB |
+| `targetType` | string | Yes | `"tenant"` or `"building"` |
+| `targetId` | string | Yes | ID of the tenant or building |
+| `docType` | string | Yes | One of the valid doc type values above |
+| `notes` | string | No | Optional free-text note (e.g. "ID expires Dec 2028") |
 
 **Response `201`:** Returns the created document object (same shape as GET list item).
+
+> The backend should store the file in S3 and return a signed `fileUrl` valid for a configured TTL. The `uploadedBy` field should be set from the JWT `user_id`.
+
+---
+
+### GET `/admin/documents/:id`
+
+Returns a single document record by ID, including a fresh signed download URL.
+
+**Response `200`:** Same shape as a single GET list item. The `fileUrl` should be a freshly signed URL, since stored URLs may have expired.
+
+---
+
+### PATCH `/admin/documents/:id`
+
+Updates the metadata of an existing document. Used to correct a mislabelled doc type or update notes. The file itself cannot be replaced — upload a new document instead.
+
+**Request body (all fields optional):**
+```json
+{
+  "docType": "string",
+  "notes": "string | null"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `docType` | string | Must be a valid value from the appropriate type list |
+| `notes` | string \| null | Pass `null` to clear existing notes |
+
+**Response `200`:** Returns the full updated document object.
+
+---
+
+### DELETE `/admin/documents/:id`
+
+Permanently deletes a document record and its corresponding file from storage.
+
+**Response `200`:**
+```json
+{ "id": "string", "deleted": true }
+```
+
+> This is a hard delete — the file is removed from S3 and the record is gone. Warn the user in the UI before calling this endpoint if the document is a Lease Agreement or legally significant type.
 
 ---
 
@@ -1117,7 +1165,6 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `GET /tenants/:id` | Yes | Yes | No |
 | `PATCH /tenants/:id` | Yes | Yes | No |
 | `DELETE /tenants/:id` | Yes | No | No |
-| `/tenants` | Yes | Yes | No |
 | `GET /payments` | Yes | Yes | No |
 | `POST /payments` | Yes | Yes | No |
 | `PATCH /payments/:id` | Yes | Yes | No |
@@ -1127,7 +1174,13 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `PATCH /maintenance-requests/:id` | Yes | Yes | No |
 | `GET /tenant/maintenance` | No | No | Yes |
 | `POST /tenant/maintenance` | No | No | Yes |
-| `/admin/*` | Yes | No | No |
+| `GET /admin/documents` | Yes | Yes | No |
+| `POST /admin/documents` | Yes | Yes | No |
+| `GET /admin/documents/:id` | Yes | Yes | No |
+| `PATCH /admin/documents/:id` | Yes | Yes | No |
+| `DELETE /admin/documents/:id` | Yes | No | No |
+| `/admin/alerts/*` | Yes | No | No |
+| `/admin/payment-methods/*` | Yes | No | No |
 | `/admin/lease-extension-requests/*` | Yes | Yes | No |
 | `/tenant/*` | No | No | Yes |
 | `/contact/inquiries` | Public | Public | Public |
