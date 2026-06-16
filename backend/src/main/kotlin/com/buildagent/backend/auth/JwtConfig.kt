@@ -19,7 +19,7 @@ data class AgentPrincipal(
 
 private val logger = LoggerFactory.getLogger("JwtConfig")
 
-fun Application.configureAuthentication() {
+fun Application.configureAuthentication(localJwtService: LocalJwtService) {
     val domain = environment.config.property("auth0.domain").getString()
     val audience = environment.config.property("auth0.audience").getString()
     val namespace = environment.config.property("auth0.namespace").getString()
@@ -45,6 +45,31 @@ fun Application.configureAuthentication() {
 
                 if (agencyId.isNullOrBlank() || userId.isNullOrBlank() || role.isNullOrBlank()) {
                     logger.warn("JWT missing custom claims for subject=${credential.payload.subject}")
+                    null
+                } else {
+                    AgentPrincipal(userId = userId, agencyId = agencyId, email = email, role = role)
+                }
+            }
+            challenge { _, _ ->
+                call.respondText(
+                    text = """{"error":"Invalid or expired token"}""",
+                    contentType = ContentType.Application.Json,
+                    status = HttpStatusCode.Unauthorized
+                )
+            }
+        }
+
+        jwt("local-auth") {
+            realm = "BuildAgent API"
+            verifier(localJwtService.verifier())
+            validate { credential ->
+                val userId = credential.payload.subject
+                val agencyId = credential.payload.getClaim("agency_id").asString()
+                val email = credential.payload.getClaim("email").asString() ?: ""
+                val role = credential.payload.getClaim("role").asString()
+
+                if (userId.isNullOrBlank() || agencyId.isNullOrBlank() || role.isNullOrBlank()) {
+                    logger.warn("Local JWT missing claims for subject=$userId")
                     null
                 } else {
                     AgentPrincipal(userId = userId, agencyId = agencyId, email = email, role = role)

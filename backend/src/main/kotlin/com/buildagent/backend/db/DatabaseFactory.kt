@@ -26,7 +26,7 @@ object DatabaseFactory {
 
         transaction {
             SchemaUtils.createMissingTablesAndColumns(
-                AgenciesTable, UsersTable, ClientsTable, BuildingsTable,
+                AgenciesTable, UsersTable, UserCredentialsTable, ClientsTable, BuildingsTable,
                 UnitsTable, TenantsTable, LeasesTable, PaymentsTable,
                 MaintenanceRequestsTable, AuditEventsTable
             )

@@ -1,5 +1,6 @@
 package com.buildagent.backend
 
+import com.buildagent.backend.auth.LocalJwtService
 import com.buildagent.backend.auth.configureAuthentication
 import com.buildagent.backend.db.DatabaseFactory
 import com.buildagent.backend.di.backendModule
@@ -18,7 +19,10 @@ fun main(args: Array<String>) = EngineMain.main(args)
 fun Application.module() {
     val log = LoggerFactory.getLogger("Application")
 
-    install(Koin) { modules(backendModule(environment.config)) }
+    val jwtSecret = environment.config.property("jwt.secret").getString()
+    val localJwtService = LocalJwtService(jwtSecret)
+
+    install(Koin) { modules(backendModule(environment.config, localJwtService)) }
 
     DatabaseFactory.init(
         url = environment.config.property("database.url").getString(),
@@ -31,9 +35,10 @@ fun Application.module() {
 
     configureSerialization()
     configureHTTP()
-    configureAuthentication()
+    configureAuthentication(localJwtService)
     configureRouting()
     configureStatusPages()
+    configureSwagger()
 
     val scheduledJobs by inject<ScheduledJobs>()
     scheduledJobs.start()

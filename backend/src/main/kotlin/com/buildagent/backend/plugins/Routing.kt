@@ -11,6 +11,8 @@ import kotlinx.datetime.Clock
 import org.koin.ktor.ext.inject
 
 fun Application.configureRouting() {
+    val authService by inject<AuthService>()
+    val adminService by inject<AdminService>()
     val buildingService by inject<BuildingService>()
     val unitService by inject<UnitService>()
     val tenantService by inject<TenantService>()
@@ -26,6 +28,8 @@ fun Application.configureRouting() {
         }
 
         route("/api/v1") {
+            authRoutes(authService)
+            adminRoutes(adminService)
             buildingRoutes(buildingService)
             unitRoutes(unitService)
             tenantRoutes(tenantService)

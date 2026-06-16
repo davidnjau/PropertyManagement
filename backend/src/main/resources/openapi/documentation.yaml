@@ -1,0 +1,1651 @@
+openapi: "3.0.3"
+info:
+  title: BuildAgent API
+  description: |
+    Multi-tenant property management API for building agents, property owners, and tenants.
+
+    ## Authentication
+    Two auth schemes are supported:
+    - **Local Auth** — used for `/auth/register`, `/auth/login`, and `/auth/me`. Issues a signed HMAC256 JWT.
+    - **Auth0** — used for all other routes. Validated against Auth0 JWKS endpoint.
+
+    Obtain a token via `POST /api/v1/auth/login` and supply it as `Authorization: Bearer <token>`.
+  version: "1.0.0"
+  contact:
+    name: BuildAgent
+
+servers:
+  - url: http://localhost:3001
+    description: Local development
+
+tags:
+  - name: Health
+    description: Server health check
+  - name: Auth
+    description: Registration, login, and user profile
+  - name: Buildings
+    description: Building portfolio management
+  - name: Units
+    description: Unit management within buildings
+  - name: Tenants
+    description: Tenant records
+  - name: Leases
+    description: Lease lifecycle management
+  - name: Payments
+    description: Rent, bond, and fee payment ledger
+  - name: Maintenance
+    description: Maintenance request tracking
+  - name: Dashboard
+    description: Portfolio overview metrics
+  - name: Admin
+    description: Super-admin user management (ADMIN role required)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Id:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Resource UUID
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    UserType:
+      type: string
+      enum: [AGENCY, AGENT, CLIENT, TENANT, VENDOR]
+      description: |
+        The type of user being registered. Maps to a role:
+        - AGENCY → ADMIN (creates a new agency)
+        - AGENT  → AGENT
+        - CLIENT → CLIENT (property owner)
+        - TENANT → TENANT (renter)
+        - VENDOR → VENDOR (contractor/supplier)
+
+    RegisterRequest:
+      type: object
+      required: [userType, fullName, email, password]
+      properties:
+        userType:
+          $ref: '#/components/schemas/UserType'
+        agencyName:
+          type: string
+          description: Required when userType is AGENCY
+          example: "Sunrise Property Group"
+        agencyId:
+          type: string
+          format: uuid
+          description: Required when userType is AGENT, CLIENT, TENANT, or VENDOR
+        fullName:
+          type: string
+          example: "Jane Smith"
+        email:
+          type: string
+          format: email
+          example: "jane@sunriseproperty.com.au"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "S3cur3P@ssw0rd"
+        phone:
+          type: string
+          nullable: true
+          example: "+61412345678"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "jane@sunriseproperty.com.au"
+        password:
+          type: string
+          format: password
+          example: "S3cur3P@ssw0rd"
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, AGENT, CLIENT, TENANT, VENDOR]
+        userType:
+          $ref: '#/components/schemas/UserType'
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT bearer token (30-day expiry)
+        user:
+          $ref: '#/components/schemas/AuthUser'
+
+    # ── Admin ─────────────────────────────────────────────────────────────────
+    CreateUserRequest:
+      type: object
+      required: [userType, fullName, email, password]
+      properties:
+        userType:
+          $ref: '#/components/schemas/UserType'
+        fullName:
+          type: string
+          example: "Tom Nguyen"
+        email:
+          type: string
+          format: email
+          example: "tom@sunriseproperty.com.au"
+        password:
+          type: string
+          format: password
+          minLength: 8
+        phone:
+          type: string
+          nullable: true
+
+    AdminUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, AGENT, CLIENT, TENANT, VENDOR]
+        userType:
+          $ref: '#/components/schemas/UserType'
+        phone:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Buildings ─────────────────────────────────────────────────────────────
+    CreateBuildingRequest:
+      type: object
+      required: [address, suburb, state, postcode]
+      properties:
+        clientId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          nullable: true
+          example: "Harbour View Apartments"
+        address:
+          type: string
+          example: "12 Marine Parade"
+        suburb:
+          type: string
+          example: "Manly"
+        state:
+          type: string
+          example: "NSW"
+        postcode:
+          type: string
+          example: "2095"
+        country:
+          type: string
+          default: "Australia"
+        buildingType:
+          type: string
+          enum: [RESIDENTIAL, COMMERCIAL, MIXED]
+          default: RESIDENTIAL
+        yearBuilt:
+          type: integer
+          nullable: true
+          example: 2005
+        notes:
+          type: string
+          nullable: true
+
+    Building:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        clientId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        address:
+          type: string
+        suburb:
+          type: string
+        state:
+          type: string
+        postcode:
+          type: string
+        country:
+          type: string
+        buildingType:
+          type: string
+          enum: [RESIDENTIAL, COMMERCIAL, MIXED]
+        yearBuilt:
+          type: integer
+          nullable: true
+        unitCount:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BuildingSummaryData:
+      type: object
+      properties:
+        total:
+          type: integer
+        occupied:
+          type: integer
+        vacant:
+          type: integer
+        occupancyRate:
+          type: number
+          format: double
+        monthlyIncome:
+          type: number
+          format: double
+
+    # ── Units ─────────────────────────────────────────────────────────────────
+    CreateUnitRequest:
+      type: object
+      required: [unitNumber]
+      properties:
+        unitNumber:
+          type: string
+          example: "4A"
+        floor:
+          type: integer
+          nullable: true
+        bedrooms:
+          type: integer
+          default: 0
+        bathrooms:
+          type: integer
+          default: 0
+        parkingSpaces:
+          type: integer
+          default: 0
+        areaSqm:
+          type: number
+          format: double
+          nullable: true
+        rentAmount:
+          type: number
+          format: double
+          nullable: true
+          example: 2400.00
+        rentFrequency:
+          type: string
+          enum: [WEEKLY, FORTNIGHTLY, MONTHLY]
+          default: MONTHLY
+        notes:
+          type: string
+          nullable: true
+
+    BuildingUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buildingId:
+          type: string
+          format: uuid
+        unitNumber:
+          type: string
+        floor:
+          type: integer
+          nullable: true
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: integer
+        parkingSpaces:
+          type: integer
+        areaSqm:
+          type: number
+          format: double
+          nullable: true
+        rentAmount:
+          type: number
+          format: double
+          nullable: true
+        rentFrequency:
+          type: string
+          enum: [WEEKLY, FORTNIGHTLY, MONTHLY]
+        status:
+          type: string
+          enum: [VACANT, OCCUPIED, UNDER_MAINTENANCE, OFF_MARKET]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Tenants ───────────────────────────────────────────────────────────────
+    CreateTenantRequest:
+      type: object
+      required: [fullName, email]
+      properties:
+        fullName:
+          type: string
+          example: "Michael Johnson"
+        email:
+          type: string
+          format: email
+          example: "michael@example.com"
+        phone:
+          type: string
+          nullable: true
+          example: "+61400123456"
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        idType:
+          type: string
+          nullable: true
+          example: "Passport"
+        idReference:
+          type: string
+          nullable: true
+          example: "PA1234567"
+        emergencyContactName:
+          type: string
+          nullable: true
+        emergencyContactPhone:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Leases ────────────────────────────────────────────────────────────────
+    CreateLeaseRequest:
+      type: object
+      required: [unitId, tenantId, startDate, rentAmount, bondAmount]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+          example: "2024-02-01"
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-01-31"
+        rentAmount:
+          type: number
+          format: double
+          example: 2400.00
+        rentFrequency:
+          type: string
+          enum: [WEEKLY, FORTNIGHTLY, MONTHLY]
+          default: MONTHLY
+        bondAmount:
+          type: number
+          format: double
+          example: 4800.00
+        paymentDay:
+          type: integer
+          default: 1
+          example: 1
+        specialConditions:
+          type: string
+          nullable: true
+        moveInDate:
+          type: string
+          format: date
+          nullable: true
+
+    TerminateLeaseRequest:
+      type: object
+      required: [moveOutDate]
+      properties:
+        moveOutDate:
+          type: string
+          format: date
+          example: "2025-01-31"
+
+    Lease:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        rentAmount:
+          type: number
+          format: double
+        rentFrequency:
+          type: string
+          enum: [WEEKLY, FORTNIGHTLY, MONTHLY]
+        bondAmount:
+          type: number
+          format: double
+        bondLodged:
+          type: boolean
+        status:
+          type: string
+          enum: [ACTIVE, PERIODIC, EXPIRING_SOON, EXPIRED, VACATED, TERMINATED]
+        computedStatus:
+          type: string
+          enum: [ACTIVE, PERIODIC, EXPIRING_SOON, EXPIRED, VACATED, TERMINATED]
+          nullable: true
+        paymentDay:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Payments ──────────────────────────────────────────────────────────────
+    RecordPaymentRequest:
+      type: object
+      required: [leaseId, amount, paymentType, periodFrom, periodTo]
+      properties:
+        leaseId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+          example: 2400.00
+        paymentType:
+          type: string
+          enum: [RENT, BOND, WATER, FEE, OTHER]
+        status:
+          type: string
+          enum: [PENDING, RECEIVED, OVERDUE, PARTIAL, WAIVED]
+          default: RECEIVED
+        periodFrom:
+          type: string
+          format: date
+          example: "2024-02-01"
+        periodTo:
+          type: string
+          format: date
+          example: "2024-02-29"
+        referenceNo:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        paymentDate:
+          type: string
+          format: date
+          nullable: true
+
+    AdjustPaymentRequest:
+      type: object
+      required: [amount, reason]
+      properties:
+        amount:
+          type: number
+          format: double
+          example: -150.00
+        reason:
+          type: string
+          example: "Water usage credit"
+        notes:
+          type: string
+          nullable: true
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        paymentType:
+          type: string
+          enum: [RENT, BOND, WATER, FEE, OTHER]
+        status:
+          type: string
+          enum: [PENDING, RECEIVED, OVERDUE, PARTIAL, WAIVED]
+        periodFrom:
+          type: string
+          format: date
+        periodTo:
+          type: string
+          format: date
+        referenceNo:
+          type: string
+          nullable: true
+        isAdjustment:
+          type: boolean
+        adjustmentReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Maintenance ───────────────────────────────────────────────────────────
+    CreateMaintenanceRequest:
+      type: object
+      required: [unitId, category, title, description]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, HVAC, STRUCTURAL, APPLIANCE, SECURITY, COMMON_AREA, OTHER]
+        priority:
+          type: string
+          enum: [EMERGENCY, URGENT, ROUTINE, LOW]
+          default: ROUTINE
+        title:
+          type: string
+          example: "Leaking tap in kitchen"
+        description:
+          type: string
+          example: "Cold water tap dripping continuously, staining sink."
+
+    UpdateMaintenanceRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [REPORTED, ASSESSED, ASSIGNED, IN_PROGRESS, COMPLETED, CLOSED, CANCELLED]
+          nullable: true
+        contractorName:
+          type: string
+          nullable: true
+        contractorPhone:
+          type: string
+          nullable: true
+        assignedDate:
+          type: string
+          format: date
+          nullable: true
+        attendedDate:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    CloseMaintenanceRequest:
+      type: object
+      required: [completedDate]
+      properties:
+        completedDate:
+          type: string
+          format: date
+          example: "2024-02-10"
+        invoiceReference:
+          type: string
+          nullable: true
+        invoiceAmount:
+          type: number
+          format: double
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    MaintenanceRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, HVAC, STRUCTURAL, APPLIANCE, SECURITY, COMMON_AREA, OTHER]
+        priority:
+          type: string
+          enum: [EMERGENCY, URGENT, ROUTINE, LOW]
+        status:
+          type: string
+          enum: [REPORTED, ASSESSED, ASSIGNED, IN_PROGRESS, COMPLETED, CLOSED, CANCELLED]
+        title:
+          type: string
+        description:
+          type: string
+        contractorName:
+          type: string
+          nullable: true
+        slaTargetDate:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Dashboard ─────────────────────────────────────────────────────────────
+    UnitStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        occupied:
+          type: integer
+        vacant:
+          type: integer
+
+    DashboardData:
+      type: object
+      properties:
+        buildings:
+          type: integer
+        units:
+          $ref: '#/components/schemas/UnitStats'
+        occupancyRate:
+          type: integer
+          description: Percentage 0–100
+        overduePayments:
+          type: integer
+        expiringLeases:
+          type: integer
+          description: Leases expiring within 60 days
+        openMaintenance:
+          type: integer
+        slaBreached:
+          type: integer
+
+    # ── Shared ────────────────────────────────────────────────────────────────
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        pages:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+paths:
+  # ── Health ───────────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [Health]
+      summary: Server health check
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  ts:
+                    type: string
+                    format: date-time
+
+  # ── Auth ─────────────────────────────────────────────────────────────────
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new agency and admin user
+      description: Creates an agency, an ADMIN user, and returns a signed JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        "201":
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuthResponse'
+        "400":
+          description: Email already registered or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuthResponse'
+        "400":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuthUser'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Buildings ─────────────────────────────────────────────────────────────
+  /api/v1/buildings:
+    get:
+      tags: [Buildings]
+      summary: List buildings
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of buildings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Building'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Buildings]
+      summary: Create a building
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBuildingRequest'
+      responses:
+        "201":
+          description: Building created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Building'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/buildings/{id}:
+    get:
+      tags: [Buildings]
+      summary: Get a building by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        "200":
+          description: Building detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Building'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/buildings/{id}/summary:
+    get:
+      tags: [Buildings]
+      summary: Get occupancy and income summary for a building
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        "200":
+          description: Building summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BuildingSummaryData'
+
+  # ── Units ─────────────────────────────────────────────────────────────────
+  /api/v1/buildings/{buildingId}/units:
+    get:
+      tags: [Units]
+      summary: List units in a building
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: buildingId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of units
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BuildingUnit'
+
+    post:
+      tags: [Units]
+      summary: Add a unit to a building
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: buildingId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        "201":
+          description: Unit created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BuildingUnit'
+
+  /api/v1/units/{id}:
+    get:
+      tags: [Units]
+      summary: Get a unit by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        "200":
+          description: Unit detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BuildingUnit'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Units]
+      summary: Update a unit
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        "200":
+          description: Unit updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BuildingUnit'
+
+  # ── Tenants ───────────────────────────────────────────────────────────────
+  /api/v1/tenants:
+    get:
+      tags: [Tenants]
+      summary: List tenants
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated tenant list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tenant'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Tenants]
+      summary: Create a tenant
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        "201":
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Tenant'
+
+  /api/v1/tenants/{id}:
+    get:
+      tags: [Tenants]
+      summary: Get a tenant by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        "200":
+          description: Tenant detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Tenant'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Tenants]
+      summary: Update a tenant
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        "200":
+          description: Tenant updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Tenant'
+
+  # ── Leases ────────────────────────────────────────────────────────────────
+  /api/v1/leases:
+    get:
+      tags: [Leases]
+      summary: List leases
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated lease list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lease'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Leases]
+      summary: Create a lease
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeaseRequest'
+      responses:
+        "201":
+          description: Lease created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lease'
+
+  /api/v1/leases/{id}:
+    get:
+      tags: [Leases]
+      summary: Get a lease by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        "200":
+          description: Lease detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lease'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/leases/{id}/terminate:
+    post:
+      tags: [Leases]
+      summary: Terminate a lease
+      description: Requires ADMIN or AGENT role. Sets status to TERMINATED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminateLeaseRequest'
+      responses:
+        "200":
+          description: Lease terminated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lease'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  # ── Payments ──────────────────────────────────────────────────────────────
+  /api/v1/payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: leaseId
+          description: Filter by lease ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Paginated payment list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Payments]
+      summary: Record a payment
+      description: Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+      responses:
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Payment'
+
+  /api/v1/payments/overdue:
+    get:
+      tags: [Payments]
+      summary: List overdue payments
+      description: Returns payments past their due date (grace period 3 days).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of overdue payments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+
+  /api/v1/payments/{id}/adjust:
+    post:
+      tags: [Payments]
+      summary: Adjust a payment
+      description: Creates a corrective adjustment entry against an existing payment. Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustPaymentRequest'
+      responses:
+        "201":
+          description: Adjustment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Payment'
+
+  # ── Maintenance ───────────────────────────────────────────────────────────
+  /api/v1/maintenance:
+    get:
+      tags: [Maintenance]
+      summary: List maintenance requests
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [REPORTED, ASSESSED, ASSIGNED, IN_PROGRESS, COMPLETED, CLOSED, CANCELLED]
+        - in: query
+          name: priority
+          schema:
+            type: string
+            enum: [EMERGENCY, URGENT, ROUTINE, LOW]
+      responses:
+        "200":
+          description: Paginated maintenance request list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaintenanceRequest'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Maintenance]
+      summary: Create a maintenance request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaintenanceRequest'
+      responses:
+        "201":
+          description: Maintenance request created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MaintenanceRequest'
+
+  /api/v1/maintenance/{id}:
+    patch:
+      tags: [Maintenance]
+      summary: Update a maintenance request
+      description: Update status, assign contractor, or add notes. Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaintenanceRequest'
+      responses:
+        "200":
+          description: Maintenance request updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MaintenanceRequest'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/maintenance/{id}/close:
+    post:
+      tags: [Maintenance]
+      summary: Close a maintenance request
+      description: Records completion date, invoice, and agent sign-off. Requires ADMIN or AGENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseMaintenanceRequest'
+      responses:
+        "200":
+          description: Maintenance request closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MaintenanceRequest'
+
+  # ── Admin ─────────────────────────────────────────────────────────────────
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users in the agency
+      description: Returns every active user belonging to the caller's agency. Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUserResponse'
+        "400":
+          description: Forbidden — caller is not ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Admin]
+      summary: Create a new user in the agency
+      description: |
+        Creates a user of any type (AGENT, CLIENT, TENANT, VENDOR) within the caller's agency.
+        The user is immediately active and can log in with the supplied password.
+        Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            examples:
+              agent:
+                summary: Create an agent
+                value:
+                  userType: AGENT
+                  fullName: "Sarah Lee"
+                  email: "sarah@sunriseproperty.com.au"
+                  password: "TempPass123!"
+                  phone: "+61411222333"
+              tenant:
+                summary: Create a tenant
+                value:
+                  userType: TENANT
+                  fullName: "Mike Johnson"
+                  email: "mike.j@email.com"
+                  password: "TempPass123!"
+              vendor:
+                summary: Create a vendor
+                value:
+                  userType: VENDOR
+                  fullName: "FastFix Plumbing"
+                  email: "jobs@fastfix.com.au"
+                  password: "TempPass123!"
+                  phone: "+61299998888"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserResponse'
+        "400":
+          description: Email already registered or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+  /api/v1/dashboard/agent:
+    get:
+      tags: [Dashboard]
+      summary: Agent portfolio dashboard
+      description: Returns key metrics — occupancy rate, overdue payments, expiring leases, open maintenance, SLA breaches.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DashboardData'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
