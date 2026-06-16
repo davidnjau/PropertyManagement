@@ -10,7 +10,7 @@ const stats = [
 
 export default function Overview() {
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Portfolio overview</h1>
       <p className="text-sm text-gray-500 mb-8">A snapshot of your workspace today.</p>
 

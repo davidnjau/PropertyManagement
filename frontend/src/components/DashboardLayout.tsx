@@ -10,6 +10,7 @@ import {
   LogOut,
   SquareUser,
   Settings,
+  Bell,
 } from 'lucide-react'
 
 const workspaceNav = [
@@ -22,6 +23,8 @@ const workspaceNav = [
 ]
 
 const adminNav = [
+  { to: '/dashboard/admin/alerts', label: 'Alerts', icon: <Bell size={16} /> },
+  { to: '/dashboard/admin/documents', label: 'Documents', icon: <FileText size={16} /> },
   { to: '/dashboard/admin/payment-methods', label: 'Payment Methods', icon: <Settings size={16} /> },
 ]
 
@@ -48,7 +51,7 @@ export default function DashboardLayout() {
   const navigate = useNavigate()
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex h-screen overflow-hidden bg-white">
       {/* Sidebar */}
       <aside className="w-52 border-r border-gray-100 flex flex-col shrink-0">
         <div className="h-14 flex items-center px-4 border-b border-gray-100">
@@ -84,9 +87,9 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="h-14 border-b border-gray-100 flex items-center justify-between px-6">
+        <div className="h-14 border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <SquareUser size={14} />
             davidnjau21@gmail.com
@@ -101,7 +104,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 overflow-y-auto p-8">
           <Outlet />
         </main>
       </div>
