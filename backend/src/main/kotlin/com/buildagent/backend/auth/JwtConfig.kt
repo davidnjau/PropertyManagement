@@ -1,0 +1,62 @@
+package com.buildagent.backend.auth
+
+import com.auth0.jwk.JwkProviderBuilder
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
+import io.ktor.server.response.*
+import org.slf4j.LoggerFactory
+import java.net.URL
+import java.util.concurrent.TimeUnit
+
+data class AgentPrincipal(
+    val userId: String,
+    val agencyId: String,
+    val email: String,
+    val role: String
+) : Principal
+
+private val logger = LoggerFactory.getLogger("JwtConfig")
+
+fun Application.configureAuthentication() {
+    val domain = environment.config.property("auth0.domain").getString()
+    val audience = environment.config.property("auth0.audience").getString()
+    val namespace = environment.config.property("auth0.namespace").getString()
+    val issuer = "https://$domain/"
+
+    val jwkProvider = JwkProviderBuilder(URL("https://$domain/.well-known/jwks.json"))
+        .cached(10, 24, TimeUnit.HOURS)
+        .rateLimited(10, 1, TimeUnit.MINUTES)
+        .build()
+
+    install(Authentication) {
+        jwt("auth0") {
+            realm = "BuildAgent API"
+            verifier(jwkProvider, issuer) {
+                acceptLeeway(3)
+                withAudience(audience)
+            }
+            validate { credential ->
+                val agencyId = credential.payload.getClaim("${namespace}agency_id").asString()
+                val userId = credential.payload.getClaim("${namespace}user_id").asString()
+                val role = credential.payload.getClaim("${namespace}role").asString()
+                val email = credential.payload.getClaim("email").asString() ?: ""
+
+                if (agencyId.isNullOrBlank() || userId.isNullOrBlank() || role.isNullOrBlank()) {
+                    logger.warn("JWT missing custom claims for subject=${credential.payload.subject}")
+                    null
+                } else {
+                    AgentPrincipal(userId = userId, agencyId = agencyId, email = email, role = role)
+                }
+            }
+            challenge { _, _ ->
+                call.respondText(
+                    text = """{"error":"Invalid or expired token"}""",
+                    contentType = ContentType.Application.Json,
+                    status = HttpStatusCode.Unauthorized
+                )
+            }
+        }
+    }
+}
