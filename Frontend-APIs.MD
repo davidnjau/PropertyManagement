@@ -25,6 +25,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 13. [Tenant — Maintenance Requests](#13-tenant--maintenance-requests)
 14. [Tenant — Documents](#14-tenant--documents)
 15. [Contact / Demo Request](#15-contact--demo-request)
+16. [Lease Extension Requests (Admin)](#16-lease-extension-requests-admin)
 
 ---
 
@@ -768,6 +769,75 @@ Saves a demo request or contact inquiry from the marketing site. This is a publi
 
 ---
 
+## 16. Lease Extension Requests (Admin)
+
+**Page:** `src/pages/dashboard/Tenants.tsx` (pending UI — no admin review screen exists yet)
+
+When a tenant submits a lease extension request via `POST /tenant/lease/extension-request`, it lands in a `Pending` state. These endpoints allow an agent/admin to list and act on those requests.
+
+### GET `/admin/lease-extension-requests`
+
+Returns all pending (and recently resolved) lease extension requests across the agency.
+
+**Query params:** `?status=pending|approved|rejected` (optional, defaults to all)
+
+**Response `200`:**
+```json
+[
+  {
+    "id": "string",
+    "leaseId": "string",
+    "tenantId": "string",
+    "tenantName": "string",
+    "unit": "string",
+    "building": "string",
+    "currentEndDate": "YYYY-MM-DD",
+    "proposedEndDate": "YYYY-MM-DD",
+    "durationMonths": 12,
+    "customEndDate": "YYYY-MM-DD | null",
+    "notes": "string | null",
+    "status": "Pending | Approved | Rejected",
+    "submittedAt": "ISO 8601",
+    "resolvedAt": "ISO 8601 | null",
+    "resolvedBy": "string | null"
+  }
+]
+```
+
+---
+
+### PATCH `/admin/lease-extension-requests/:id`
+
+Approves or rejects a lease extension request. On approval, the backend should update the linked lease's `endDate` to `proposedEndDate`.
+
+**Request body:**
+```json
+{
+  "status": "Approved | Rejected",
+  "agentNotes": "string | null"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `status` | string | Must be `"Approved"` or `"Rejected"` |
+| `agentNotes` | string \| null | Optional message back to the tenant |
+
+**Response `200`:**
+```json
+{
+  "id": "string",
+  "status": "Approved | Rejected",
+  "proposedEndDate": "YYYY-MM-DD",
+  "resolvedAt": "ISO 8601",
+  "resolvedBy": "string"
+}
+```
+
+> **Side effect on approval:** The backend must update the tenant's lease record — set `leaseEnd = proposedEndDate` and `leaseStatus = "Active"`. This ensures `GET /tenant/lease` and `GET /tenants` immediately reflect the new end date.
+
+---
+
 ## Appendix — Shared Resource Dependencies
 
 Several pages fetch the same resources (buildings, tenants) to populate dropdowns. The backend should return consistent shapes for these so a single React Query hook can serve multiple consumers.
@@ -791,6 +861,7 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `/payments` | Yes | Yes | No |
 | `/maintenance-requests` | Yes | Yes | No |
 | `/admin/*` | Yes | No | No |
+| `/admin/lease-extension-requests/*` | Yes | Yes | No |
 | `/tenant/*` | No | No | Yes |
 | `/contact/inquiries` | Public | Public | Public |
 
