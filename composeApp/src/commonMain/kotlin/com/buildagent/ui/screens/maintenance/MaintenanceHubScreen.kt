@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.getScreenModel
+import org.koin.compose.koinInject
 import com.buildagent.shared.models.MaintenanceRequest
 import com.buildagent.shared.models.MaintenanceStatus
 import com.buildagent.ui.components.*
@@ -22,7 +22,7 @@ private val statusFilters = listOf("All", "REPORTED", "ASSIGNED", "IN_PROGRESS",
 
 @Composable
 fun MaintenanceHubScreen() {
-    val vm = getScreenModel<MaintenanceViewModel>()
+    val vm = koinInject<MaintenanceViewModel>()
     val requests by vm.requests.collectAsState()
     val loading by vm.loading.collectAsState()
     var filter by remember { mutableStateOf("All") }

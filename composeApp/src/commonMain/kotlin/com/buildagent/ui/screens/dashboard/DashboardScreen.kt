@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.getScreenModel
+import org.koin.compose.koinInject
 import com.buildagent.ui.components.*
 import com.buildagent.ui.theme.Gray100
 import com.buildagent.ui.theme.Gray500
@@ -17,7 +17,7 @@ import com.buildagent.ui.theme.Success600
 
 @Composable
 fun DashboardScreen() {
-    val vm = getScreenModel<DashboardViewModel>()
+    val vm = koinInject<DashboardViewModel>()
     val state by vm.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {

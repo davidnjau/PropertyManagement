@@ -10,13 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.getScreenModel
+import org.koin.compose.koinInject
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
 
 @Composable
 fun TenantsScreen() {
-    val vm = getScreenModel<TenancyViewModel>()
+    val vm = koinInject<TenancyViewModel>()
     val tenants by vm.tenants.collectAsState()
     val loading by vm.loading.collectAsState()
 

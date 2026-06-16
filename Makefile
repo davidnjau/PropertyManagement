@@ -38,4 +38,4 @@ web-dev:
 	./gradlew :composeApp:wasmJsBrowserDevelopmentRun --continuous
 
 backend-run:
-	cd backend && ./gradlew run
+	./gradlew :backend:run

@@ -10,14 +10,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.getScreenModel
+import org.koin.compose.koinInject
 import com.buildagent.shared.models.Building
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
 
 @Composable
 fun BuildingsScreen() {
-    val vm = getScreenModel<PortfolioViewModel>()
+    val vm = koinInject<PortfolioViewModel>()
     val buildings by vm.buildings.collectAsState()
     val loading by vm.loading.collectAsState()
     val error by vm.error.collectAsState()
