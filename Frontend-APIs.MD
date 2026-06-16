@@ -18,7 +18,7 @@ JWT claims must include: `agency_id`, `user_id`, `role` (`admin | agent | tenant
 6. [Payment Methods Config (Admin)](#6-payment-methods-config-admin)
 7. [Maintenance Requests](#7-maintenance-requests) (create + admin management)
 8. [Documents — Admin Upload](#8-documents--admin-upload) (upload + management)
-9. [Alerts (Admin)](#9-alerts-admin)
+9. [Alerts (Admin)](#9-alerts-admin) (send + management)
 10. [Tenant — Overview](#10-tenant--overview)
 11. [Tenant — Lease](#11-tenant--lease)
 12. [Tenant — Pay Rent](#12-tenant--pay-rent)
@@ -769,7 +769,9 @@ Permanently deletes a document record and its corresponding file from storage.
 
 ### GET `/admin/alerts`
 
-Returns the history of sent alerts for the agency.
+Returns the history of sent alerts for the agency. The frontend history table displays all columns in the response.
+
+**Query params:** `?status=Sent|Failed` `&targetType=all|building|tenant|rent_due` `&channel=in_app|email|sms` `&from=YYYY-MM-DD` `&to=YYYY-MM-DD`
 
 **Response `200`:**
 ```json
@@ -777,29 +779,36 @@ Returns the history of sent alerts for the agency.
   {
     "id": "string",
     "sentAt": "ISO 8601",
+    "sentBy": "string",
     "targetType": "all | building | tenant | rent_due",
     "targetLabel": "string",
+    "buildingId": "string | null",
+    "tenantIds": ["string"],
+    "rentDueFilter": "upcoming | overdue | both | null",
     "channels": ["in_app", "email", "sms"],
     "subject": "string",
     "message": "string",
     "recipientCount": 0,
-    "status": "Sent | Failed"
+    "status": "Sent | Failed",
+    "failureReason": "string | null"
   }
 ]
 ```
+
+> `sentBy` is the `user_id` of the admin who composed the alert. `failureReason` is populated when `status` is `"Failed"` — e.g. a downstream SMS/email provider error.
 
 ---
 
 ### POST `/admin/alerts`
 
-Sends an alert notification. The backend is responsible for resolving recipients from the target criteria and dispatching via the chosen channels.
+Sends an alert notification. The backend resolves recipients from the target criteria, dispatches via the chosen channels, and records the result in alert history.
 
 **Request body:**
 ```json
 {
   "targetType": "all | building | tenant | rent_due",
   "buildingId": "string | null",
-  "tenantIds": ["string"] ,
+  "tenantIds": ["string"],
   "rentDueFilter": "upcoming | overdue | both | null",
   "channels": ["in_app", "email", "sms"],
   "subject": "string",
@@ -807,7 +816,69 @@ Sends an alert notification. The backend is responsible for resolving recipients
 }
 ```
 
+| Field | Type | Notes |
+|---|---|---|
+| `targetType` | string | Determines which of the conditional fields below are used |
+| `buildingId` | string \| null | Required when `targetType` is `"building"` |
+| `tenantIds` | string[] | Required (non-empty) when `targetType` is `"tenant"` |
+| `rentDueFilter` | string \| null | Required when `targetType` is `"rent_due"`: `"upcoming"` (7 days), `"overdue"`, or `"both"` |
+| `channels` | string[] | At least one of `"in_app"`, `"email"`, `"sms"` required |
+| `subject` | string | Alert subject line |
+| `message` | string | Alert body |
+
 **Response `201`:** Returns the created alert history record (same shape as GET list item).
+
+> **Dispatch behaviour:** `in_app` creates a notification record readable by the tenant portal. `email` triggers SendGrid. `sms` triggers Twilio. Partial failures (e.g. SMS fails but email succeeds) should still record `status: "Sent"` with per-channel failure detail in `failureReason`.
+
+---
+
+### GET `/admin/alerts/:id`
+
+Returns a single alert record by ID, including the full recipient list resolved at send time.
+
+**Response `200`:**
+```json
+{
+  "id": "string",
+  "sentAt": "ISO 8601",
+  "sentBy": "string",
+  "targetType": "all | building | tenant | rent_due",
+  "targetLabel": "string",
+  "buildingId": "string | null",
+  "tenantIds": ["string"],
+  "rentDueFilter": "upcoming | overdue | both | null",
+  "channels": ["in_app", "email", "sms"],
+  "subject": "string",
+  "message": "string",
+  "recipientCount": 0,
+  "status": "Sent | Failed",
+  "failureReason": "string | null",
+  "recipients": [
+    {
+      "tenantId": "string",
+      "tenantName": "string",
+      "email": "string",
+      "phone": "string | null",
+      "channelStatuses": {
+        "in_app": "Delivered | Skipped",
+        "email": "Delivered | Failed | Skipped",
+        "sms": "Delivered | Failed | Skipped"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### DELETE `/admin/alerts/:id`
+
+Removes an alert record from history. Does not retract already-delivered notifications.
+
+**Response `200`:**
+```json
+{ "id": "string", "deleted": true }
+```
 
 ---
 
@@ -1179,7 +1250,10 @@ Several pages fetch the same resources (buildings, tenants) to populate dropdown
 | `GET /admin/documents/:id` | Yes | Yes | No |
 | `PATCH /admin/documents/:id` | Yes | Yes | No |
 | `DELETE /admin/documents/:id` | Yes | No | No |
-| `/admin/alerts/*` | Yes | No | No |
+| `GET /admin/alerts` | Yes | Yes | No |
+| `POST /admin/alerts` | Yes | No | No |
+| `GET /admin/alerts/:id` | Yes | Yes | No |
+| `DELETE /admin/alerts/:id` | Yes | No | No |
 | `/admin/payment-methods/*` | Yes | No | No |
 | `/admin/lease-extension-requests/*` | Yes | Yes | No |
 | `/tenant/*` | No | No | Yes |
