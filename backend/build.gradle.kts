@@ -7,7 +7,7 @@ plugins {
 group = "com.buildagent"
 version = "1.0.0"
 
-kotlin { jvmToolchain(17) }
+kotlin { jvmToolchain(21) }
 
 application {
     mainClass.set("com.buildagent.backend.ApplicationKt")
