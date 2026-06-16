@@ -9,6 +9,17 @@ export type PaymentMethod = {
   banks?: Bank[]
 }
 
+export type MpesaConfig = {
+  businessNo: string
+  accountNo: string
+  instructions: string
+}
+
+export type PaypalConfig = {
+  email: string
+  instructions: string
+}
+
 const KENYAN_BANKS: string[] = [
   'KCB Bank',
   'Equity Bank',
@@ -45,16 +56,33 @@ const DEFAULT_METHODS: PaymentMethod[] = [
   },
 ]
 
+const DEFAULT_MPESA: MpesaConfig = {
+  businessNo: '123456',
+  accountNo: 'Your unit number',
+  instructions: 'Go to M-Pesa → Lipa na M-Pesa → Pay Bill. Enter the business number and use your unit number as the account number.',
+}
+
+const DEFAULT_PAYPAL: PaypalConfig = {
+  email: 'payments@buildagent.example',
+  instructions: 'Send payment to the email above. Include your unit number and rent period as the payment note.',
+}
+
 type ContextValue = {
   methods: PaymentMethod[]
+  mpesaConfig: MpesaConfig
+  paypalConfig: PaypalConfig
   toggleMethod: (id: string) => void
   toggleBank: (bankId: string) => void
+  updateMpesaConfig: (config: MpesaConfig) => void
+  updatePaypalConfig: (config: PaypalConfig) => void
 }
 
 const PaymentMethodsContext = createContext<ContextValue | null>(null)
 
 export function PaymentMethodsProvider({ children }: { children: React.ReactNode }) {
   const [methods, setMethods] = useState<PaymentMethod[]>(DEFAULT_METHODS)
+  const [mpesaConfig, setMpesaConfig] = useState<MpesaConfig>(DEFAULT_MPESA)
+  const [paypalConfig, setPaypalConfig] = useState<PaypalConfig>(DEFAULT_PAYPAL)
 
   function toggleMethod(id: string) {
     setMethods((prev) =>
@@ -78,7 +106,15 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
   }
 
   return (
-    <PaymentMethodsContext.Provider value={{ methods, toggleMethod, toggleBank }}>
+    <PaymentMethodsContext.Provider value={{
+      methods,
+      mpesaConfig,
+      paypalConfig,
+      toggleMethod,
+      toggleBank,
+      updateMpesaConfig: setMpesaConfig,
+      updatePaypalConfig: setPaypalConfig,
+    }}>
       {children}
     </PaymentMethodsContext.Provider>
   )
