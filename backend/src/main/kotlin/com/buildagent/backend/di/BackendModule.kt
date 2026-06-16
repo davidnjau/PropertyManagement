@@ -1,12 +1,15 @@
 package com.buildagent.backend.di
 
+import com.buildagent.backend.auth.LocalJwtService
 import com.buildagent.backend.kafka.producers.DomainEventProducer
 import com.buildagent.backend.scheduler.ScheduledJobs
 import com.buildagent.backend.services.*
 import io.ktor.server.config.*
 import org.koin.dsl.module
 
-fun backendModule(config: ApplicationConfig) = module {
+fun backendModule(config: ApplicationConfig, localJwtService: LocalJwtService) = module {
+    single { localJwtService }
+    single { AuthService(get()) }
     single { AuditService() }
     single { BuildingService() }
     single { UnitService() }

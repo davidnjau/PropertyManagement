@@ -164,6 +164,12 @@ object MaintenanceRequestsTable : UUIDTable("maintenance_requests") {
     val updatedAt: Column<Instant> = timestamp("updated_at")
 }
 
+object UserCredentialsTable : UUIDTable("user_credentials") {
+    val userId = reference("user_id", UsersTable, onDelete = ReferenceOption.CASCADE).uniqueIndex()
+    val passwordHash = varchar("password_hash", 500)
+    val salt = varchar("salt", 100)
+}
+
 object AuditEventsTable : UUIDTable("audit_events") {
     val agencyId = reference("agency_id", AgenciesTable)
     val actorId = reference("actor_id", UsersTable)
