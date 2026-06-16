@@ -10,6 +10,7 @@ import org.koin.dsl.module
 fun backendModule(config: ApplicationConfig, localJwtService: LocalJwtService) = module {
     single { localJwtService }
     single { AuthService(get()) }
+    single { AdminService() }
     single { AuditService() }
     single { BuildingService() }
     single { UnitService() }

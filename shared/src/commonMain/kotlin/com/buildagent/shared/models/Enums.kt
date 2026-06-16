@@ -3,7 +3,26 @@ package com.buildagent.shared.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class UserRole { ADMIN, AGENT, CLIENT, TENANT }
+enum class UserRole { ADMIN, AGENT, CLIENT, TENANT, VENDOR }
+
+@Serializable
+enum class UserType { AGENCY, AGENT, CLIENT, TENANT, VENDOR }
+
+fun UserType.toRole(): UserRole = when (this) {
+    UserType.AGENCY -> UserRole.ADMIN
+    UserType.AGENT  -> UserRole.AGENT
+    UserType.CLIENT -> UserRole.CLIENT
+    UserType.TENANT -> UserRole.TENANT
+    UserType.VENDOR -> UserRole.VENDOR
+}
+
+fun UserRole.toUserType(): UserType = when (this) {
+    UserRole.ADMIN  -> UserType.AGENCY
+    UserRole.AGENT  -> UserType.AGENT
+    UserRole.CLIENT -> UserType.CLIENT
+    UserRole.TENANT -> UserType.TENANT
+    UserRole.VENDOR -> UserType.VENDOR
+}
 
 @Serializable
 enum class BuildingType { RESIDENTIAL, COMMERCIAL, MIXED }

@@ -2,7 +2,6 @@ package com.buildagent.backend.plugins
 
 import com.buildagent.backend.kafka.producers.DomainEventProducer
 import com.buildagent.backend.routes.*
-import com.buildagent.backend.services.AuthService
 import com.buildagent.backend.services.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -13,6 +12,7 @@ import org.koin.ktor.ext.inject
 
 fun Application.configureRouting() {
     val authService by inject<AuthService>()
+    val adminService by inject<AdminService>()
     val buildingService by inject<BuildingService>()
     val unitService by inject<UnitService>()
     val tenantService by inject<TenantService>()
@@ -29,6 +29,7 @@ fun Application.configureRouting() {
 
         route("/api/v1") {
             authRoutes(authService)
+            adminRoutes(adminService)
             buildingRoutes(buildingService)
             unitRoutes(unitService)
             tenantRoutes(tenantService)

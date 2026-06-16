@@ -1,6 +1,7 @@
 package com.buildagent.backend.services
 
 import com.buildagent.backend.auth.LocalJwtService
+import com.buildagent.backend.auth.PasswordHasher
 import com.buildagent.backend.db.dbQuery
 import com.buildagent.backend.db.tables.AgenciesTable
 import com.buildagent.backend.db.tables.UserCredentialsTable
@@ -9,43 +10,58 @@ import com.buildagent.shared.models.AuthResponse
 import com.buildagent.shared.models.AuthUser
 import com.buildagent.shared.models.LoginRequest
 import com.buildagent.shared.models.RegisterRequest
-import com.buildagent.shared.models.UserRole
+import com.buildagent.shared.models.UserType
+import com.buildagent.shared.models.toRole
+import com.buildagent.shared.models.toUserType
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.selectAll
-import java.security.SecureRandom
 import java.util.Base64
 import java.util.UUID
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.PBEKeySpec
 
 class AuthService(private val jwtService: LocalJwtService) {
 
     suspend fun register(req: RegisterRequest): AuthResponse = dbQuery {
+        // Validate required fields per user type
+        when (req.userType) {
+            UserType.AGENCY -> require(!req.agencyName.isNullOrBlank()) {
+                "agencyName is required when registering as an agency"
+            }
+            else -> require(!req.agencyId.isNullOrBlank()) {
+                "agencyId is required when registering as ${req.userType.name.lowercase()}"
+            }
+        }
+
         val exists = UsersTable.selectAll()
             .where { UsersTable.email eq req.email }
             .firstOrNull()
         require(exists == null) { "Email already registered" }
 
         val now: Instant = Clock.System.now()
-        val saltBytes = generateSalt()
-        val hash = hashPassword(req.password, saltBytes)
+        val salt = PasswordHasher.generateSalt()
+        val hash = PasswordHasher.hash(req.password, salt)
+        val role = req.userType.toRole()
 
-        val newAgencyId = AgenciesTable.insertAndGetId {
-            it[AgenciesTable.name] = req.agencyName
-            it[AgenciesTable.contactEmail] = req.email
-            it[AgenciesTable.createdAt] = now
-            it[AgenciesTable.updatedAt] = now
+        val resolvedAgencyId: UUID = when (req.userType) {
+            UserType.AGENCY -> {
+                AgenciesTable.insertAndGetId {
+                    it[AgenciesTable.name] = req.agencyName!!
+                    it[AgenciesTable.contactEmail] = req.email
+                    it[AgenciesTable.createdAt] = now
+                    it[AgenciesTable.updatedAt] = now
+                }.value
+            }
+            else -> UUID.fromString(req.agencyId!!)
         }
 
         val newUserId = UsersTable.insertAndGetId {
-            it[UsersTable.agencyId] = newAgencyId
+            it[UsersTable.agencyId] = resolvedAgencyId
             it[UsersTable.auth0Sub] = "local|${UUID.randomUUID()}"
             it[UsersTable.email] = req.email
             it[UsersTable.fullName] = req.fullName
-            it[UsersTable.role] = UserRole.ADMIN
+            it[UsersTable.role] = role
             it[UsersTable.phone] = req.phone
             it[UsersTable.createdAt] = now
             it[UsersTable.updatedAt] = now
@@ -54,24 +70,25 @@ class AuthService(private val jwtService: LocalJwtService) {
         UserCredentialsTable.insertAndGetId {
             it[UserCredentialsTable.userId] = newUserId
             it[UserCredentialsTable.passwordHash] = hash
-            it[UserCredentialsTable.salt] = Base64.getEncoder().encodeToString(saltBytes)
+            it[UserCredentialsTable.salt] = Base64.getEncoder().encodeToString(salt)
         }
 
         val token = jwtService.issue(
             userId = newUserId.value.toString(),
-            agencyId = newAgencyId.value.toString(),
+            agencyId = resolvedAgencyId.toString(),
             email = req.email,
-            role = UserRole.ADMIN.name
+            role = role.name
         )
 
         AuthResponse(
             token = token,
             user = AuthUser(
                 id = newUserId.value.toString(),
-                agencyId = newAgencyId.value.toString(),
+                agencyId = resolvedAgencyId.toString(),
                 email = req.email,
                 fullName = req.fullName,
-                role = UserRole.ADMIN.name
+                role = role.name,
+                userType = req.userType.name
             )
         )
     }
@@ -89,15 +106,19 @@ class AuthService(private val jwtService: LocalJwtService) {
             .firstOrNull()
             ?: throw IllegalArgumentException("Invalid credentials")
 
-        val salt = Base64.getDecoder().decode(creds[UserCredentialsTable.salt])
-        val expected = hashPassword(req.password, salt)
-        require(expected == creds[UserCredentialsTable.passwordHash]) { "Invalid credentials" }
+        val valid = PasswordHasher.verify(
+            password = req.password,
+            saltBase64 = creds[UserCredentialsTable.salt],
+            storedHash = creds[UserCredentialsTable.passwordHash]
+        )
+        require(valid) { "Invalid credentials" }
 
+        val role = userRow[UsersTable.role]
         val token = jwtService.issue(
             userId = foundUserId.value.toString(),
             agencyId = userRow[UsersTable.agencyId].value.toString(),
             email = userRow[UsersTable.email],
-            role = userRow[UsersTable.role].name
+            role = role.name
         )
 
         AuthResponse(
@@ -107,7 +128,8 @@ class AuthService(private val jwtService: LocalJwtService) {
                 agencyId = userRow[UsersTable.agencyId].value.toString(),
                 email = userRow[UsersTable.email],
                 fullName = userRow[UsersTable.fullName],
-                role = userRow[UsersTable.role].name
+                role = role.name,
+                userType = role.toUserType().name
             )
         )
     }
@@ -118,24 +140,14 @@ class AuthService(private val jwtService: LocalJwtService) {
             .firstOrNull()
             ?: throw NoSuchElementException("User not found")
 
+        val role = userRow[UsersTable.role]
         AuthUser(
             id = userRow[UsersTable.id].value.toString(),
             agencyId = userRow[UsersTable.agencyId].value.toString(),
             email = userRow[UsersTable.email],
             fullName = userRow[UsersTable.fullName],
-            role = userRow[UsersTable.role].name
+            role = role.name,
+            userType = role.toUserType().name
         )
-    }
-
-    private fun generateSalt(): ByteArray {
-        val bytes = ByteArray(16)
-        SecureRandom().nextBytes(bytes)
-        return bytes
-    }
-
-    private fun hashPassword(password: String, salt: ByteArray): String {
-        val spec = PBEKeySpec(password.toCharArray(), salt, 310_000, 256)
-        val key = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec)
-        return Base64.getEncoder().encodeToString(key.encoded)
     }
 }

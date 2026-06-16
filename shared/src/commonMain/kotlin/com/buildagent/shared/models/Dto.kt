@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RegisterRequest(
-    val agencyName: String,
+    val userType: UserType = UserType.AGENCY,
+    val agencyName: String? = null,   // required when userType = AGENCY
+    val agencyId: String? = null,      // required when userType != AGENCY
     val fullName: String,
     val email: String,
     val password: String,
@@ -25,7 +27,32 @@ data class AuthUser(
     val agencyId: String,
     val email: String,
     val fullName: String,
-    val role: String
+    val role: String,
+    val userType: String
+)
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+@Serializable
+data class CreateUserRequest(
+    val userType: UserType,
+    val fullName: String,
+    val email: String,
+    val password: String,
+    val phone: String? = null
+)
+
+@Serializable
+data class AdminUserResponse(
+    val id: String,
+    val agencyId: String,
+    val email: String,
+    val fullName: String,
+    val role: String,
+    val userType: String,
+    val phone: String? = null,
+    val isActive: Boolean = true,
+    val createdAt: String
 )
 
 // ── Requests ────────────────────────────────────────────────────────────────

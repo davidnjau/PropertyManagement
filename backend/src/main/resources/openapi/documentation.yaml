@@ -37,6 +37,8 @@ tags:
     description: Maintenance request tracking
   - name: Dashboard
     description: Portfolio overview metrics
+  - name: Admin
+    description: Super-admin user management (ADMIN role required)
 
 components:
   securitySchemes:
@@ -71,13 +73,31 @@ components:
 
   schemas:
     # ── Auth ──────────────────────────────────────────────────────────────────
+    UserType:
+      type: string
+      enum: [AGENCY, AGENT, CLIENT, TENANT, VENDOR]
+      description: |
+        The type of user being registered. Maps to a role:
+        - AGENCY → ADMIN (creates a new agency)
+        - AGENT  → AGENT
+        - CLIENT → CLIENT (property owner)
+        - TENANT → TENANT (renter)
+        - VENDOR → VENDOR (contractor/supplier)
+
     RegisterRequest:
       type: object
-      required: [agencyName, fullName, email, password]
+      required: [userType, fullName, email, password]
       properties:
+        userType:
+          $ref: '#/components/schemas/UserType'
         agencyName:
           type: string
+          description: Required when userType is AGENCY
           example: "Sunrise Property Group"
+        agencyId:
+          type: string
+          format: uuid
+          description: Required when userType is AGENT, CLIENT, TENANT, or VENDOR
         fullName:
           type: string
           example: "Jane Smith"
@@ -124,7 +144,9 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, AGENT, CLIENT, TENANT]
+          enum: [ADMIN, AGENT, CLIENT, TENANT, VENDOR]
+        userType:
+          $ref: '#/components/schemas/UserType'
 
     AuthResponse:
       type: object
@@ -134,6 +156,56 @@ components:
           description: JWT bearer token (30-day expiry)
         user:
           $ref: '#/components/schemas/AuthUser'
+
+    # ── Admin ─────────────────────────────────────────────────────────────────
+    CreateUserRequest:
+      type: object
+      required: [userType, fullName, email, password]
+      properties:
+        userType:
+          $ref: '#/components/schemas/UserType'
+        fullName:
+          type: string
+          example: "Tom Nguyen"
+        email:
+          type: string
+          format: email
+          example: "tom@sunriseproperty.com.au"
+        password:
+          type: string
+          format: password
+          minLength: 8
+        phone:
+          type: string
+          nullable: true
+
+    AdminUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, AGENT, CLIENT, TENANT, VENDOR]
+        userType:
+          $ref: '#/components/schemas/UserType'
+        phone:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
 
     # ── Buildings ─────────────────────────────────────────────────────────────
     CreateBuildingRequest:
@@ -1468,6 +1540,93 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/MaintenanceRequest'
+
+  # ── Admin ─────────────────────────────────────────────────────────────────
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users in the agency
+      description: Returns every active user belonging to the caller's agency. Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUserResponse'
+        "400":
+          description: Forbidden — caller is not ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Admin]
+      summary: Create a new user in the agency
+      description: |
+        Creates a user of any type (AGENT, CLIENT, TENANT, VENDOR) within the caller's agency.
+        The user is immediately active and can log in with the supplied password.
+        Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            examples:
+              agent:
+                summary: Create an agent
+                value:
+                  userType: AGENT
+                  fullName: "Sarah Lee"
+                  email: "sarah@sunriseproperty.com.au"
+                  password: "TempPass123!"
+                  phone: "+61411222333"
+              tenant:
+                summary: Create a tenant
+                value:
+                  userType: TENANT
+                  fullName: "Mike Johnson"
+                  email: "mike.j@email.com"
+                  password: "TempPass123!"
+              vendor:
+                summary: Create a vendor
+                value:
+                  userType: VENDOR
+                  fullName: "FastFix Plumbing"
+                  email: "jobs@fastfix.com.au"
+                  password: "TempPass123!"
+                  phone: "+61299998888"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserResponse'
+        "400":
+          description: Email already registered or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
 
   # ── Dashboard ─────────────────────────────────────────────────────────────
   /api/v1/dashboard/agent:
