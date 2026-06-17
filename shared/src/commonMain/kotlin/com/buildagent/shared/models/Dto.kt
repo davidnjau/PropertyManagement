@@ -183,8 +183,9 @@ data class CloseMaintenanceRequest(
 
 @Serializable
 data class ApiResponse<T>(
-    val data: T,
-    val meta: PaginationMeta? = null
+    val data: T? = null,
+    val meta: PaginationMeta? = null,
+    val message: String? = null
 )
 
 @Serializable

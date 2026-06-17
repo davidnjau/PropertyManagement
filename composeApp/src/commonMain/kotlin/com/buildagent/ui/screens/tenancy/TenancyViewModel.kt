@@ -27,7 +27,7 @@ class TenancyViewModel(private val client: BuildAgentClient) : ScreenModel {
     fun loadTenants() {
         screenModelScope.launch {
             _loading.value = true
-            try { _tenants.value = client.getTenants().data }
+            try { _tenants.value = client.getTenants().data ?: emptyList() }
             catch (e: Exception) { }
             finally { _loading.value = false }
         }
@@ -35,7 +35,7 @@ class TenancyViewModel(private val client: BuildAgentClient) : ScreenModel {
 
     fun loadLeases() {
         screenModelScope.launch {
-            try { _leases.value = client.getLeases().data }
+            try { _leases.value = client.getLeases().data ?: emptyList() }
             catch (e: Exception) { }
         }
     }

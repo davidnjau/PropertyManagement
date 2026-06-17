@@ -28,7 +28,7 @@ class AdminAlertsViewModel(private val client: BuildAgentClient) : ScreenModel {
             _loading.value = true
             _error.value = null
             try {
-                _alerts.value = client.getAlerts().data
+                _alerts.value = client.getAlerts().data ?: emptyList()
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {

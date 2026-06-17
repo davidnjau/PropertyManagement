@@ -20,7 +20,7 @@ class MaintenanceViewModel(private val client: BuildAgentClient) : ScreenModel {
     fun load(status: String? = null) {
         screenModelScope.launch {
             _loading.value = true
-            try { _requests.value = client.getMaintenance(status).data }
+            try { _requests.value = client.getMaintenance(status).data ?: emptyList() }
             catch (e: Exception) { }
             finally { _loading.value = false }
         }

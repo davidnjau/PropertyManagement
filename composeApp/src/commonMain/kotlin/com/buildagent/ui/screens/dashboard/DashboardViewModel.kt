@@ -25,7 +25,7 @@ class DashboardViewModel(private val client: BuildAgentClient) : ScreenModel {
             _state.value = DashboardUiState.Loading
             try {
                 val data = client.getAgentDashboard()
-                _state.value = DashboardUiState.Success(data.data)
+                _state.value = DashboardUiState.Success(data.data ?: error(data.message ?: "No data"))
             } catch (e: Exception) {
                 _state.value = DashboardUiState.Error(e.message ?: "Failed to load dashboard")
             }

@@ -44,7 +44,7 @@ class TenantPortalViewModel(private val client: BuildAgentClient) : ScreenModel 
             try {
                 _overview.value = client.getTenantOverview().data
                 _lease.value = client.getTenantLease().data
-                _payments.value = client.getTenantPayments().data
+                _payments.value = client.getTenantPayments().data ?: emptyList()
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
@@ -55,14 +55,14 @@ class TenantPortalViewModel(private val client: BuildAgentClient) : ScreenModel 
 
     fun loadMaintenance() {
         screenModelScope.launch {
-            try { _maintenance.value = client.getTenantMaintenance().data }
+            try { _maintenance.value = client.getTenantMaintenance().data ?: emptyList() }
             catch (e: Exception) { _error.value = e.message }
         }
     }
 
     fun loadDocuments() {
         screenModelScope.launch {
-            try { _documents.value = client.getTenantDocuments().data }
+            try { _documents.value = client.getTenantDocuments().data ?: emptyList() }
             catch (e: Exception) { _error.value = e.message }
         }
     }

@@ -23,7 +23,7 @@ class PaymentsViewModel(private val client: BuildAgentClient) : ScreenModel {
     fun loadPayments() {
         screenModelScope.launch {
             _loading.value = true
-            try { _payments.value = client.getPayments().data }
+            try { _payments.value = client.getPayments().data ?: emptyList() }
             catch (e: Exception) { }
             finally { _loading.value = false }
         }
@@ -32,7 +32,7 @@ class PaymentsViewModel(private val client: BuildAgentClient) : ScreenModel {
     fun loadOverdue() {
         screenModelScope.launch {
             _loading.value = true
-            try { _overduePayments.value = client.getOverduePayments().data }
+            try { _overduePayments.value = client.getOverduePayments().data ?: emptyList() }
             catch (e: Exception) { }
             finally { _loading.value = false }
         }

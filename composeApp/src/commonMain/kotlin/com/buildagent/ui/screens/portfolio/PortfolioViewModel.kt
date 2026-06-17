@@ -25,7 +25,7 @@ class PortfolioViewModel(private val client: BuildAgentClient) : ScreenModel {
             _loading.value = true
             _error.value = null
             try {
-                _buildings.value = client.getBuildings().data
+                _buildings.value = client.getBuildings().data ?: emptyList()
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {

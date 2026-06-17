@@ -27,7 +27,7 @@ class AdminLeaseExtensionsViewModel(private val client: BuildAgentClient) : Scre
             _loading.value = true
             _error.value = null
             try {
-                _requests.value = client.getLeaseExtensions().data
+                _requests.value = client.getLeaseExtensions().data ?: emptyList()
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {

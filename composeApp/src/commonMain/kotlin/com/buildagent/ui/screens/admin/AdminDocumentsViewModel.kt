@@ -24,7 +24,7 @@ class AdminDocumentsViewModel(private val client: BuildAgentClient) : ScreenMode
             _loading.value = true
             _error.value = null
             try {
-                _documents.value = client.getAdminDocuments(entityType).data
+                _documents.value = client.getAdminDocuments(entityType).data ?: emptyList()
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {

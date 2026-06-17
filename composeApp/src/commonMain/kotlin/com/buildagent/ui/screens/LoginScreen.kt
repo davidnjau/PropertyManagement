@@ -84,9 +84,10 @@ class LoginScreen : Screen {
                             scope.launch {
                                 try {
                                     val response = client.signIn(email.trim(), password)
-                                    val user = response.data.user
+                                    val auth = response.data ?: error(response.message ?: "Sign in failed")
+                                    val user = auth.user
                                     authState.value = AuthState.Authenticated(
-                                        token = response.data.token,
+                                        token = auth.token,
                                         agencyId = user.agencyId,
                                         role = user.role,
                                         userName = user.fullName
