@@ -361,7 +361,7 @@ export default function AdminDocuments() {
                 <tbody>
                   {docs.map((d) => (
                     <tr key={d.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-900">{d.target}</td>
+                      <td className="px-5 py-3 font-medium text-gray-900 text-xs font-mono">{d.targetId.slice(0, 8)}…</td>
                       <td className="px-5 py-3">
                         <span className="text-xs font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
                           {d.docType}
@@ -371,15 +371,16 @@ export default function AdminDocuments() {
                         <div className="flex items-center gap-2">
                           <FileText size={13} className="text-gray-400 shrink-0" />
                           <div>
-                            <p className="text-sm text-gray-700 truncate max-w-[160px]">{d.fileName}</p>
-                            <p className="text-xs text-gray-400">{d.fileSize}</p>
+                            <a href={d.fileUrl} target="_blank" rel="noreferrer"
+                              className="text-sm text-gray-700 truncate max-w-[160px] hover:underline block">{d.fileName}</a>
+                            <p className="text-xs text-gray-400">{(d.fileSize / 1024).toFixed(0)} KB</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-xs text-gray-400 max-w-[140px]">
                         <span className="truncate block">{d.notes || '—'}</span>
                       </td>
-                      <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">{d.uploadedAt}</td>
+                      <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">{d.uploadedAt.slice(0, 10)}</td>
                     </tr>
                   ))}
                 </tbody>
