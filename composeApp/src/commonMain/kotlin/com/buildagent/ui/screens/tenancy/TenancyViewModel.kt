@@ -3,6 +3,7 @@ package com.buildagent.ui.screens.tenancy
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.buildagent.shared.api.BuildAgentClient
+import com.buildagent.shared.models.CreateLeaseRequest
 import com.buildagent.shared.models.CreateTenantRequest
 import com.buildagent.shared.models.Lease
 import com.buildagent.shared.models.Tenant
@@ -40,14 +41,26 @@ class TenancyViewModel(private val client: BuildAgentClient) : ScreenModel {
         }
     }
 
-    fun createTenant(request: CreateTenantRequest, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun createTenant(request: CreateTenantRequest, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         screenModelScope.launch {
             try {
-                client.createTenant(request)
+                val tenant = client.createTenant(request).data ?: error("No tenant returned")
                 loadTenants()
-                onSuccess()
+                onSuccess(tenant.id)
             } catch (e: Exception) {
                 onError(e.message ?: "Failed to create tenant.")
+            }
+        }
+    }
+
+    fun createLease(request: CreateLeaseRequest, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        screenModelScope.launch {
+            try {
+                client.createLease(request)
+                loadLeases()
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to create lease.")
             }
         }
     }

@@ -20,6 +20,7 @@ import com.buildagent.ui.components.AppDrawer
 import com.buildagent.ui.screens.admin.AdminAlertsScreen
 import com.buildagent.ui.screens.admin.AdminDocumentsScreen
 import com.buildagent.ui.screens.admin.AdminLeaseExtensionsScreen
+import com.buildagent.ui.screens.admin.AdminUsersScreen
 import com.buildagent.ui.screens.admin.PaymentMethodsScreen
 import com.buildagent.ui.screens.dashboard.DashboardScreen
 import com.buildagent.ui.screens.maintenance.MaintenanceHubScreen
@@ -83,6 +84,7 @@ class MainScreen : Screen {
                         7 -> AdminDocumentsScreen()
                         8 -> PaymentMethodsScreen()
                         9 -> AdminLeaseExtensionsScreen()
+                        10 -> AdminUsersScreen()
                         else -> DashboardScreen()
                     }
                 }

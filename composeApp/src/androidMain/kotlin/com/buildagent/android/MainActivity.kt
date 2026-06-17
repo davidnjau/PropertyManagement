@@ -15,10 +15,7 @@ class MainActivity : ComponentActivity() {
         if (GlobalContext.getOrNull() == null) {
             startKoin {
                 androidContext(this@MainActivity)
-                modules(appModules(
-                    baseUrl = "http://10.0.2.2:3001",
-                    tokenProvider = { "" }
-                ))
+                modules(appModules(baseUrl = "http://10.0.2.2:3001"))
             }
         }
         setContent { App() }

@@ -11,10 +11,7 @@ fun MainViewController() = ComposeUIViewController {
     if (!koinStarted) {
         koinStarted = true
         startKoin {
-            modules(appModules(
-                baseUrl = "http://localhost:3001",
-                tokenProvider = { "" }
-            ))
+            modules(appModules(baseUrl = "http://localhost:3001"))
         }
     }
     App()

@@ -12,6 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import com.buildagent.shared.models.PaymentType
+import com.buildagent.shared.models.RecordPaymentRequest
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.components.StatusBadge
 import com.buildagent.ui.components.paymentStatusBadge
@@ -21,13 +23,30 @@ import com.buildagent.ui.utils.fmt2dp
 @Composable
 fun TenantPayRentScreen() {
     val vm = koinInject<TenantPortalViewModel>()
+    val lease by vm.lease.collectAsState()
     val payments by vm.payments.collectAsState()
     val loading by vm.loading.collectAsState()
     val error by vm.error.collectAsState()
+    var showPayDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Pay Rent", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(20.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Pay Rent", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            if (lease != null) {
+                Button(
+                    onClick = { showPayDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Record Payment")
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
 
         error?.let { Text("Error: $it", color = Danger600, fontSize = 13.sp); Spacer(Modifier.height(8.dp)) }
 
@@ -35,14 +54,14 @@ fun TenantPayRentScreen() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
-            colors = CardDefaults.cardColors(containerColor = com.buildagent.ui.theme.Brand100)
+            colors = CardDefaults.cardColors(containerColor = Brand100)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("How to Pay", fontWeight = FontWeight.SemiBold, color = Brand600, fontSize = 15.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Pay via M-Pesa Paybill or bank transfer as configured by your agent. " +
-                    "Contact your agent if you need payment details or have any questions.",
+                    "Contact your agent if you need payment details.",
                     fontSize = 13.sp,
                     color = Gray700
                 )
@@ -93,4 +112,94 @@ fun TenantPayRentScreen() {
             }
         }
     }
+
+    if (showPayDialog && lease != null) {
+        RecordTenantPaymentDialog(
+            leaseId = lease!!.id,
+            defaultAmount = lease!!.rentAmount,
+            onDismiss = { showPayDialog = false },
+            onSave = { request ->
+                vm.recordPayment(
+                    request,
+                    onSuccess = { showPayDialog = false },
+                    onError = { }
+                )
+            }
+        )
+    }
+}
+
+@Composable
+fun RecordTenantPaymentDialog(
+    leaseId: String,
+    defaultAmount: Double,
+    onDismiss: () -> Unit,
+    onSave: (RecordPaymentRequest) -> Unit
+) {
+    var amount by remember { mutableStateOf(defaultAmount.fmt2dp()) }
+    var periodFrom by remember { mutableStateOf("") }
+    var periodTo by remember { mutableStateOf("") }
+    var referenceNo by remember { mutableStateOf("") }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record Rent Payment", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text("Amount *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = periodFrom,
+                    onValueChange = { periodFrom = it },
+                    label = { Text("Period From (YYYY-MM-DD) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = periodTo,
+                    onValueChange = { periodTo = it },
+                    label = { Text("Period To (YYYY-MM-DD) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = referenceNo,
+                    onValueChange = { referenceNo = it },
+                    label = { Text("Reference No (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsedAmount = amount.toDoubleOrNull()
+                    if (parsedAmount == null || periodFrom.isBlank() || periodTo.isBlank()) {
+                        errorMsg = "Amount and period dates are required."
+                        return@Button
+                    }
+                    onSave(
+                        RecordPaymentRequest(
+                            leaseId = leaseId,
+                            amount = parsedAmount,
+                            paymentType = PaymentType.RENT,
+                            periodFrom = periodFrom.trim(),
+                            periodTo = periodTo.trim(),
+                            referenceNo = referenceNo.trim().ifBlank { null }
+                        )
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600)
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }

@@ -34,6 +34,7 @@ val adminNavItems = listOf(
     NavItem("Documents",         "📁", 7),
     NavItem("Payment Methods",   "⚙️", 8),
     NavItem("Lease Extensions",  "📋", 9),
+    NavItem("Team Members",      "👤", 10),
 )
 
 @Composable

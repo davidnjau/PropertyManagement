@@ -19,6 +19,7 @@ import com.buildagent.ui.screens.main.MainScreen
 import com.buildagent.ui.screens.tenant.TenantMainScreen
 import com.buildagent.ui.state.AuthState
 import com.buildagent.ui.state.LocalAuthState
+import com.buildagent.ui.state.TokenStore
 import com.buildagent.ui.theme.Brand600
 import com.buildagent.ui.theme.Danger600
 import kotlinx.coroutines.launch
@@ -86,6 +87,7 @@ class LoginScreen : Screen {
                                     val response = client.signIn(email.trim(), password)
                                     val auth = response.data ?: error(response.message ?: "Sign in failed")
                                     val user = auth.user
+                                    TokenStore.token = auth.token
                                     authState.value = AuthState.Authenticated(
                                         token = auth.token,
                                         agencyId = user.agencyId,

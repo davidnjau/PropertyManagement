@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
@@ -22,6 +23,7 @@ fun TenantsScreen() {
     val tenants by vm.tenants.collectAsState()
     val loading by vm.loading.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
+    var pendingTenantId by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Row(
@@ -70,8 +72,27 @@ fun TenantsScreen() {
             onSave = { request ->
                 vm.createTenant(
                     request,
-                    onSuccess = { showDialog = false },
+                    onSuccess = { tenantId ->
+                        showDialog = false
+                        pendingTenantId = tenantId
+                    },
                     onError = { }
+                )
+            }
+        )
+    }
+
+    pendingTenantId?.let { tenantId ->
+        val tenantList = tenants.map { it.id to it.fullName }
+        CreateLeaseDialog(
+            tenants = tenantList,
+            preselectedTenantId = tenantId,
+            onDismiss = { pendingTenantId = null },
+            onSave = { request ->
+                vm.createLease(
+                    request,
+                    onSuccess = { pendingTenantId = null },
+                    onError = { pendingTenantId = null }
                 )
             }
         )
@@ -86,6 +107,7 @@ fun CreateTenantDialog(
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
@@ -115,20 +137,34 @@ fun CreateTenantDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Login Password *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+                Text(
+                    "The tenant will use this password to log in to the tenant portal.",
+                    fontSize = 12.sp,
+                    color = Gray500
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (fullName.isBlank() || email.isBlank()) {
-                        errorMsg = "Full name and email are required."
+                    if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
+                        errorMsg = "Full name, email and password are required."
                         return@Button
                     }
                     onSave(
                         CreateTenantRequest(
                             fullName = fullName.trim(),
                             email = email.trim(),
-                            phone = phone.trim().ifBlank { null }
+                            phone = phone.trim().ifBlank { null },
+                            password = password
                         )
                     )
                 },

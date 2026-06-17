@@ -103,6 +103,38 @@ fun ResultRow.toPayment(): Payment = Payment(
     updatedAt = this[PaymentsTable.updatedAt].toString()
 )
 
+fun ResultRow.toDocument(): Document = Document(
+    id = this[DocumentsTable.id].value.toString(),
+    agencyId = this[DocumentsTable.agencyId].value.toString(),
+    targetType = this[DocumentsTable.targetType],
+    targetId = this[DocumentsTable.targetId].toString(),
+    docType = this[DocumentsTable.docType],
+    fileName = this[DocumentsTable.fileName],
+    fileSize = this[DocumentsTable.fileSize],
+    mimeType = this[DocumentsTable.mimeType],
+    notes = this[DocumentsTable.notes],
+    uploadedBy = this[DocumentsTable.uploadedBy].value.toString(),
+    fileUrl = this[DocumentsTable.fileUrl],
+    uploadedAt = this[DocumentsTable.uploadedAt].toString()
+)
+
+fun ResultRow.toExtensionRequest(): LeaseExtensionRequest = LeaseExtensionRequest(
+    id = this[LeaseExtensionRequestsTable.id].value.toString(),
+    agencyId = this[LeaseExtensionRequestsTable.agencyId].value.toString(),
+    leaseId = this[LeaseExtensionRequestsTable.leaseId].value.toString(),
+    tenantId = this[LeaseExtensionRequestsTable.tenantId].value.toString(),
+    currentEndDate = this[LeaseExtensionRequestsTable.currentEndDate].toString(),
+    proposedEndDate = this[LeaseExtensionRequestsTable.proposedEndDate].toString(),
+    durationMonths = this[LeaseExtensionRequestsTable.durationMonths],
+    customEndDate = this[LeaseExtensionRequestsTable.customEndDate]?.toString(),
+    notes = this[LeaseExtensionRequestsTable.notes],
+    status = this[LeaseExtensionRequestsTable.status],
+    submittedAt = this[LeaseExtensionRequestsTable.submittedAt].toString(),
+    resolvedAt = this[LeaseExtensionRequestsTable.resolvedAt]?.toString(),
+    resolvedBy = this[LeaseExtensionRequestsTable.resolvedBy]?.toString(),
+    agentNotes = this[LeaseExtensionRequestsTable.agentNotes]
+)
+
 fun ResultRow.toMaintenance(): MaintenanceRequest = MaintenanceRequest(
     id = this[MaintenanceRequestsTable.id].value.toString(),
     agencyId = this[MaintenanceRequestsTable.agencyId].value.toString(),

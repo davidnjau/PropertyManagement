@@ -107,6 +107,7 @@ data class CreateTenantRequest(
     val fullName: String,
     val email: String,
     val phone: String? = null,
+    val password: String? = null,
     val dateOfBirth: String? = null,
     val idType: String? = null,
     val idReference: String? = null,
