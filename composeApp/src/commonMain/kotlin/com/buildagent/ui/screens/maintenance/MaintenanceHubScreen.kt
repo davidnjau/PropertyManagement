@@ -83,6 +83,7 @@ fun MaintenanceHubScreen() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateMaintenanceDialog(
     onDismiss: () -> Unit,

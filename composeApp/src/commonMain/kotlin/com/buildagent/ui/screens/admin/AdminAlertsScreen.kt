@@ -28,6 +28,7 @@ private val alertStatusBadge = mapOf(
 private val targetTypes = listOf("ALL", "BUILDING", "SPECIFIC")
 private val channelOptions = listOf("IN_APP", "EMAIL", "SMS")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminAlertsScreen() {
     val vm = koinInject<AdminAlertsViewModel>()

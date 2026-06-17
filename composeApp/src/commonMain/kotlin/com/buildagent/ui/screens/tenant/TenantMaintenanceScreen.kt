@@ -107,6 +107,7 @@ fun TenantMaintenanceScreen() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TenantMaintenanceForm(onSubmit: (CreateMaintenanceRequest) -> Unit) {
     val categories = MaintenanceCategory.entries.toList()
