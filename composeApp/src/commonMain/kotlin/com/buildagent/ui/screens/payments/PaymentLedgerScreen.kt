@@ -17,6 +17,7 @@ import com.buildagent.shared.models.PaymentType
 import com.buildagent.shared.models.RecordPaymentRequest
 import com.buildagent.ui.components.*
 import com.buildagent.ui.theme.*
+import com.buildagent.ui.utils.fmt2dp
 
 @Composable
 fun PaymentLedgerScreen() {
@@ -213,7 +214,7 @@ fun PaymentRow(payment: Payment) {
                 Text("${payment.periodFrom} — ${payment.periodTo}", fontSize = 12.sp, color = Gray500)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("A${"%.2f".format(payment.amount)}", fontWeight = FontWeight.Bold)
+                Text("A$${payment.amount.fmt2dp()}", fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 StatusBadge(payment.status.name, paymentStatusBadge)
             }

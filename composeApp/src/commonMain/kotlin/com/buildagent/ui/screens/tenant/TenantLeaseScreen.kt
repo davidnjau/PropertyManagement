@@ -15,6 +15,7 @@ import org.koin.compose.koinInject
 import com.buildagent.shared.models.CreateLeaseExtensionRequest
 import com.buildagent.shared.models.Lease
 import com.buildagent.ui.components.LoadingContent
+import com.buildagent.ui.utils.fmt2dp
 import com.buildagent.ui.components.StatusBadge
 import com.buildagent.ui.components.leaseStatusBadge
 import com.buildagent.ui.theme.*
@@ -60,8 +61,8 @@ fun TenantLeaseScreen() {
                 LeaseDetailRow("Unit ID", l.unitId)
                 LeaseDetailRow("Start Date", l.startDate)
                 LeaseDetailRow("End Date", l.endDate ?: "Ongoing (Periodic)")
-                LeaseDetailRow("Rent Amount", "A$${"%.2f".format(l.rentAmount)} / ${l.rentFrequency.name.lowercase()}")
-                LeaseDetailRow("Bond Amount", "A$${"%.2f".format(l.bondAmount)}")
+                LeaseDetailRow("Rent Amount", "A$${l.rentAmount.fmt2dp()} / ${l.rentFrequency.name.lowercase()}")
+                LeaseDetailRow("Bond Amount", "A$${l.bondAmount.fmt2dp()}")
                 LeaseDetailRow("Payment Day", "Day ${l.paymentDay} of each period")
                 l.specialConditions?.let { LeaseDetailRow("Special Conditions", it) }
             }

@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.Document
+import com.buildagent.ui.utils.fmt1dp
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
 
@@ -99,6 +100,6 @@ fun DocumentRow(doc: Document, onDelete: () -> Unit) {
 
 private fun formatFileSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
-    if (bytes < 1024 * 1024) return "${"%.1f".format(bytes / 1024.0)} KB"
-    return "${"%.1f".format(bytes / (1024.0 * 1024))} MB"
+    if (bytes < 1024 * 1024) return "${(bytes / 1024.0).fmt1dp()} KB"
+    return "${(bytes / (1024.0 * 1024)).fmt1dp()} MB"
 }

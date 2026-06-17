@@ -18,6 +18,7 @@ import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.components.StatusBadge
 import com.buildagent.ui.components.leaseStatusBadge
 import com.buildagent.ui.components.paymentStatusBadge
+import com.buildagent.ui.utils.fmt2dp
 import com.buildagent.ui.theme.*
 
 @Composable
@@ -51,7 +52,7 @@ fun TenantOverviewScreen() {
                 Text("Rent Due", color = Color(0xFF9CA3AF), fontSize = 13.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = if (ov.rentDue != null) "A$${"%.2f".format(ov.rentDue)}" else "Up to date",
+                    text = ov.rentDue?.let { "A$${it.fmt2dp()}" } ?: "Up to date",
                     color = Color.White,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
@@ -112,7 +113,7 @@ fun TenantOverviewScreen() {
                                 Text(payment.paymentType.name, fontSize = 12.sp, color = Gray500)
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("A$${"%.2f".format(payment.amount)}", fontWeight = FontWeight.Bold)
+                                Text("A$${payment.amount.fmt2dp()}", fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.height(4.dp))
                                 StatusBadge(payment.status.name, paymentStatusBadge)
                             }

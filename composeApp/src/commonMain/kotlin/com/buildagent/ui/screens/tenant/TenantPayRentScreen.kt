@@ -16,6 +16,7 @@ import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.components.StatusBadge
 import com.buildagent.ui.components.paymentStatusBadge
 import com.buildagent.ui.theme.*
+import com.buildagent.ui.utils.fmt2dp
 
 @Composable
 fun TenantPayRentScreen() {
@@ -82,7 +83,7 @@ fun TenantPayRentScreen() {
                                 payment.paymentDate?.let { Text("Date: $it", fontSize = 11.sp, color = Gray500) }
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("A$${"%.2f".format(payment.amount)}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("A$${payment.amount.fmt2dp()}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 Spacer(Modifier.height(4.dp))
                                 StatusBadge(payment.status.name, paymentStatusBadge)
                             }

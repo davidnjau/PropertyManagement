@@ -15,6 +15,7 @@ import org.koin.compose.koinInject
 import com.buildagent.shared.models.Document
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
+import com.buildagent.ui.utils.fmt1dp
 
 @Composable
 fun TenantDocumentsScreen() {
@@ -87,6 +88,6 @@ fun TenantDocumentRow(doc: Document) {
 
 private fun formatDocSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
-    if (bytes < 1024 * 1024) return "${"%.1f".format(bytes / 1024.0)} KB"
-    return "${"%.1f".format(bytes / (1024.0 * 1024))} MB"
+    if (bytes < 1024 * 1024) return "${(bytes / 1024.0).fmt1dp()} KB"
+    return "${(bytes / (1024.0 * 1024)).fmt1dp()} MB"
 }

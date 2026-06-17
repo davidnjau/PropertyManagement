@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.ui.components.*
+import com.buildagent.ui.utils.fmt0dp
 import com.buildagent.ui.theme.*
 
 @Composable
@@ -40,7 +41,7 @@ fun LeasesScreen() {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(lease.tenant?.fullName ?: "—", fontWeight = FontWeight.Medium)
-                                Text("A${"%.0f".format(lease.rentAmount)}/mo", fontSize = 13.sp, color = Gray500)
+                                Text("A$${lease.rentAmount.fmt0dp()}/mo", fontSize = 13.sp, color = Gray500)
                                 Text("${lease.startDate} — ${lease.endDate ?: "Periodic"}", fontSize = 12.sp, color = Gray500)
                             }
                             val displayStatus = (lease.computedStatus ?: lease.status).name
