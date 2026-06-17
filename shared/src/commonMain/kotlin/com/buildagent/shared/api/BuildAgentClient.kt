@@ -209,41 +209,41 @@ class BuildAgentClient(
             entityType?.let { parameter("entityType", it) }
         }.body()
 
-    suspend fun deleteAdminDocument(id: String) =
-        http.delete(url("/api/v1/admin/documents/$id")) { auth(this) }
+    suspend fun deleteAdminDocument(id: String): Unit =
+        http.delete(url("/api/v1/admin/documents/$id")) { auth(this) }.body()
 
     // ── Admin Payment Methods ─────────────────────────────────────────────────
 
     suspend fun getPaymentMethods(): ApiResponse<PaymentMethodsConfig> =
         http.get(url("/api/v1/admin/payment-methods")) { auth(this) }.body()
 
-    suspend fun togglePaymentMethod(id: String, enabled: Boolean) =
+    suspend fun togglePaymentMethod(id: String, enabled: Boolean): Unit =
         http.put(url("/api/v1/admin/payment-methods/$id/toggle")) {
             auth(this)
             contentType(ContentType.Application.Json)
             setBody(ToggleMethodRequest(enabled))
-        }
+        }.body()
 
-    suspend fun toggleBank(bankId: String, enabled: Boolean) =
+    suspend fun toggleBank(bankId: String, enabled: Boolean): Unit =
         http.put(url("/api/v1/admin/payment-methods/bank/$bankId/toggle")) {
             auth(this)
             contentType(ContentType.Application.Json)
             setBody(ToggleMethodRequest(enabled))
-        }
+        }.body()
 
-    suspend fun updateMpesaConfig(request: UpdateMpesaConfigRequest) =
+    suspend fun updateMpesaConfig(request: UpdateMpesaConfigRequest): Unit =
         http.put(url("/api/v1/admin/payment-methods/mpesa")) {
             auth(this)
             contentType(ContentType.Application.Json)
             setBody(request)
-        }
+        }.body()
 
-    suspend fun updatePaypalConfig(request: UpdatePaypalConfigRequest) =
+    suspend fun updatePaypalConfig(request: UpdatePaypalConfigRequest): Unit =
         http.put(url("/api/v1/admin/payment-methods/paypal")) {
             auth(this)
             contentType(ContentType.Application.Json)
             setBody(request)
-        }
+        }.body()
 
     // ── Admin Lease Extensions ────────────────────────────────────────────────
 
