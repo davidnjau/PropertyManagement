@@ -17,7 +17,7 @@ import kotlinx.datetime.Clock
 import java.util.UUID
 
 fun Route.maintenanceRoutes(maintenanceService: MaintenanceService, kafka: DomainEventProducer) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/maintenance") {
             get {
                 val p = call.userPrincipal()

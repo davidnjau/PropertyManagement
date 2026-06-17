@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { CheckCircle } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchTenantMaintenance, createTenantMaintenanceRequest } from '../../services/tenantPortal'
 
-type Request = { id: number; title: string; description: string; priority: string; date: string; status: string }
-
-const emptyForm = { title: '', description: '', priority: 'Medium' }
+const emptyForm = { title: '', description: '', priority: 'MEDIUM', category: 'GENERAL', unitId: '' }
 
 const statusColors: Record<string, string> = {
   Open: 'bg-amber-50 text-amber-700',
@@ -12,7 +12,18 @@ const statusColors: Record<string, string> = {
 }
 
 export default function TenantMaintenance() {
-  const [requests, setRequests] = useState<Request[]>([])
+  const qc = useQueryClient()
+
+  const { data: requests = [], isLoading, isError } = useQuery({
+    queryKey: ['tenant-maintenance'],
+    queryFn: fetchTenantMaintenance,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createTenantMaintenanceRequest,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-maintenance'] }),
+  })
+
   const [form, setForm] = useState(emptyForm)
   const [submitted, setSubmitted] = useState(false)
 
@@ -22,18 +33,13 @@ export default function TenantMaintenance() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setRequests([
-      {
-        ...form,
-        id: Date.now(),
-        date: new Date().toLocaleDateString('en-KE'),
-        status: 'Open',
+    mutation.mutate(form, {
+      onSuccess: () => {
+        setForm(emptyForm)
+        setSubmitted(true)
+        setTimeout(() => setSubmitted(false), 4000)
       },
-      ...requests,
-    ])
-    setForm(emptyForm)
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 4000)
+    })
   }
 
   return (
@@ -65,23 +71,38 @@ export default function TenantMaintenance() {
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 resize-none placeholder:text-gray-300" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+            <select name="category" value={form.category} onChange={handleChange}
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
+              <option value="GENERAL">General</option>
+              <option value="PLUMBING">Plumbing</option>
+              <option value="ELECTRICAL">Electrical</option>
+              <option value="STRUCTURAL">Structural</option>
+              <option value="APPLIANCE">Appliance</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
             <select name="priority" value={form.priority} onChange={handleChange}
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
             </select>
           </div>
-          <button type="submit"
-            className="bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-md hover:bg-gray-700 transition-colors">
-            Submit request
+          <button type="submit" disabled={mutation.isPending}
+            className="bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50">
+            {mutation.isPending ? 'Submitting…' : 'Submit request'}
           </button>
         </form>
       </div>
 
       {/* Request history */}
-      {requests.length > 0 && (
+      {isLoading ? (
+        <p className="text-sm text-gray-400">Loading...</p>
+      ) : isError ? (
+        <p className="text-sm text-red-500">Failed to load data.</p>
+      ) : requests.length > 0 ? (
         <div className="border border-gray-100 rounded-xl overflow-hidden">
           <div className="border-b border-gray-100 px-5 py-3">
             <p className="text-sm font-semibold text-gray-900">My requests</p>
@@ -100,7 +121,7 @@ export default function TenantMaintenance() {
                 <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-5 py-3 font-medium text-gray-900">{r.title}</td>
                   <td className="px-5 py-3 text-gray-500">{r.priority}</td>
-                  <td className="px-5 py-3 text-gray-500">{r.date}</td>
+                  <td className="px-5 py-3 text-gray-500">{r.createdAt}</td>
                   <td className="px-5 py-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[r.status] ?? ''}`}>
                       {r.status}
@@ -111,7 +132,7 @@ export default function TenantMaintenance() {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

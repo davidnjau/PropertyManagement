@@ -1,16 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle, X } from 'lucide-react'
-
-const lease = {
-  unit: 'Unit 4B',
-  building: 'Westlands Heights',
-  floor: '4th Floor',
-  startDate: '1 Jan 2026',
-  endDate: '31 Dec 2026',
-  monthlyRent: 'KES 45,000',
-  deposit: 'KES 90,000',
-  status: 'Active',
-}
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { fetchTenantLease, submitLeaseExtensionRequest } from '../../services/tenantPortal'
 
 const DURATION_OPTIONS = [
   { value: '3', label: '3 months' },
@@ -21,9 +12,16 @@ const DURATION_OPTIONS = [
 ]
 
 export default function TenantLease() {
+  const { data: lease, isLoading, isError } = useQuery({
+    queryKey: ['tenant-lease'],
+    queryFn: fetchTenantLease,
+  })
+
+  const mutation = useMutation({ mutationFn: submitLeaseExtensionRequest })
+
   const [showModal, setShowModal] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [form, setForm] = useState({ duration: '12', customDate: '', notes: '' })
+  const [form, setForm] = useState({ durationMonths: '12', customEndDate: '', notes: '' })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -31,16 +29,22 @@ export default function TenantLease() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setShowModal(false)
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 5000)
+    mutation.mutate(
+      { leaseId: lease?.id ?? '', durationMonths: form.durationMonths !== 'custom' ? Number(form.durationMonths) : undefined, customEndDate: form.customEndDate || undefined, notes: form.notes },
+      {
+        onSuccess: () => {
+          setShowModal(false)
+          setSubmitted(true)
+          setTimeout(() => setSubmitted(false), 5000)
+        },
+      },
+    )
   }
 
-  // Calculate proposed end date for display
   function proposedEndDate() {
-    if (form.duration === 'custom') return form.customDate || '—'
-    const base = new Date('2026-12-31')
-    base.setMonth(base.getMonth() + Number(form.duration))
+    if (form.durationMonths === 'custom') return form.customEndDate || '—'
+    const base = new Date(lease?.endDate ?? '2026-12-31')
+    base.setMonth(base.getMonth() + Number(form.durationMonths))
     return base.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
@@ -70,31 +74,36 @@ export default function TenantLease() {
       )}
 
       {/* Lease details card */}
-      <div className="border border-gray-100 rounded-2xl overflow-hidden mb-4">
-        <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between bg-gray-50">
-          <p className="text-sm font-semibold text-gray-900">{lease.unit} — {lease.building}</p>
-          <span className="text-xs font-semibold bg-green-50 text-green-700 px-2.5 py-1 rounded-full">
-            {lease.status}
-          </span>
-        </div>
+      {isLoading ? (
+        <p className="text-sm text-gray-400">Loading...</p>
+      ) : isError ? (
+        <p className="text-sm text-red-500">Failed to load data.</p>
+      ) : lease ? (
+        <div className="border border-gray-100 rounded-2xl overflow-hidden mb-4">
+          <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between bg-gray-50">
+            <p className="text-sm font-semibold text-gray-900">Unit {lease.unitId}</p>
+            <span className="text-xs font-semibold bg-green-50 text-green-700 px-2.5 py-1 rounded-full">
+              {lease.status}
+            </span>
+          </div>
 
-        <dl className="divide-y divide-gray-50">
-          {[
-            { label: 'Building', value: lease.building },
-            { label: 'Unit', value: lease.unit },
-            { label: 'Floor', value: lease.floor },
-            { label: 'Lease start', value: lease.startDate },
-            { label: 'Lease end', value: lease.endDate },
-            { label: 'Monthly rent', value: lease.monthlyRent },
-            { label: 'Security deposit', value: lease.deposit },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between px-6 py-3.5">
-              <dt className="text-sm text-gray-500">{label}</dt>
-              <dd className="text-sm font-medium text-gray-900">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+          <dl className="divide-y divide-gray-50">
+            {[
+              { label: 'Unit ID', value: lease.unitId },
+              { label: 'Lease start', value: lease.startDate },
+              { label: 'Lease end', value: lease.endDate ?? '—' },
+              { label: 'Monthly rent', value: `KES ${lease.rentAmount.toLocaleString()}` },
+              { label: 'Bond amount', value: `KES ${lease.bondAmount.toLocaleString()}` },
+              { label: 'Payment day', value: `Day ${lease.paymentDay} of month` },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-6 py-3.5">
+                <dt className="text-sm text-gray-500">{label}</dt>
+                <dd className="text-sm font-medium text-gray-900">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
 
       <p className="text-xs text-gray-400">
         To request a lease amendment, use the <span className="font-medium">Extend Lease</span> button above.
@@ -107,7 +116,9 @@ export default function TenantLease() {
             <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-gray-100">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Extend Lease</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Current end date: <span className="font-medium text-gray-700">{lease.endDate}</span></p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Current end date: <span className="font-medium text-gray-700">{lease?.endDate ?? '—'}</span>
+                </p>
               </div>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
@@ -123,9 +134,9 @@ export default function TenantLease() {
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setForm({ ...form, duration: opt.value, customDate: '' })}
+                      onClick={() => setForm({ ...form, durationMonths: opt.value, customEndDate: '' })}
                       className={`py-2.5 px-3 rounded-md border text-sm font-medium transition-colors text-left ${
-                        form.duration === opt.value
+                        form.durationMonths === opt.value
                           ? 'border-gray-900 bg-gray-900 text-white'
                           : 'border-gray-200 text-gray-700 hover:border-gray-400'
                       }`}
@@ -137,13 +148,13 @@ export default function TenantLease() {
               </div>
 
               {/* Custom date picker */}
-              {form.duration === 'custom' && (
+              {form.durationMonths === 'custom' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">New end date</label>
                   <input
-                    name="customDate"
+                    name="customEndDate"
                     type="date"
-                    value={form.customDate}
+                    value={form.customEndDate}
                     onChange={handleChange}
                     min="2027-01-01"
                     className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400"
@@ -152,7 +163,7 @@ export default function TenantLease() {
               )}
 
               {/* Proposed end date preview */}
-              {(form.duration !== 'custom' || form.customDate) && (
+              {(form.durationMonths !== 'custom' || form.customEndDate) && (
                 <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-md px-4 py-3">
                   <span className="text-xs text-gray-500 font-medium">Proposed new end date</span>
                   <span className="text-sm font-bold text-gray-900">{proposedEndDate()}</span>
@@ -184,10 +195,10 @@ export default function TenantLease() {
                 </button>
                 <button
                   type="submit"
-                  disabled={form.duration === 'custom' && !form.customDate}
+                  disabled={(form.durationMonths === 'custom' && !form.customEndDate) || mutation.isPending}
                   className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Submit request
+                  {mutation.isPending ? 'Submitting…' : 'Submit request'}
                 </button>
               </div>
             </form>

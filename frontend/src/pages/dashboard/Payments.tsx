@@ -1,114 +1,91 @@
 import { useState } from 'react'
-import { X, Copy } from 'lucide-react'
-import { usePaymentMethods } from '../../context/PaymentMethodsContext'
+import { X } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchPayments, recordPayment } from '../../services/payments'
+import api from '../../services/api'
 
-type MpesaAction = 'initiate' | 'reference' | 'details'
+type Lease = { id: string; tenantId: string; unitId: string; rentAmount: number; status: string; startDate: string; endDate?: string }
 
-type Payment = {
-  id: number
-  tenant: string
-  amount: number
-  dueDate: string
-  status: string
-  paymentMethod: string
-  bank: string
-  reference: string
+const PAYMENT_TYPES = ['RENT', 'BOND', 'WATER', 'FEE', 'OTHER']
+const PAYMENT_STATUSES = ['RECEIVED', 'PENDING', 'PARTIAL', 'WAIVED']
+
+const EMPTY_FORM = {
+  leaseId: '',
+  amount: '',
+  paymentType: 'RENT',
+  status: 'RECEIVED',
+  periodFrom: '',
+  periodTo: '',
+  referenceNo: '',
+  notes: '',
+  paymentDate: '',
 }
 
-const emptyForm = {
-  tenant: '',
-  amount: 0,
-  dueDate: '',
-  status: 'Pending',
-  paymentMethod: '',
-  bank: '',
-  // mpesa
-  phone: '',
-  mpesaRef: '',
-  mpesaAction: '' as MpesaAction | '',
-  // paypal
-  paypalEmail: '',
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  function copy() {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-  return (
-    <button type="button" onClick={copy}
-      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">
-      <Copy size={12} />
-      {copied ? 'Copied' : 'Copy'}
-    </button>
-  )
+const statusColors: Record<string, string> = {
+  RECEIVED: 'bg-green-50 text-green-700',
+  PENDING:  'bg-amber-50 text-amber-700',
+  OVERDUE:  'bg-red-50 text-red-600',
+  PARTIAL:  'bg-blue-50 text-blue-700',
+  WAIVED:   'bg-gray-100 text-gray-500',
 }
 
 export default function Payments() {
-  const { methods, mpesaConfig, paypalConfig } = usePaymentMethods()
-  const enabledMethods = methods.filter((m) => m.enabled)
-  const bankTransfer = methods.find((m) => m.id === 'bank_transfer')
-  const enabledBanks = bankTransfer?.banks?.filter((b) => b.enabled) ?? []
+  const qc = useQueryClient()
 
-  const [payments, setPayments] = useState<Payment[]>([])
+  const { data: payments = [], isLoading, isError } = useQuery({
+    queryKey: ['payments'],
+    queryFn: fetchPayments,
+  })
+
+  const { data: leasesResp } = useQuery({
+    queryKey: ['leases'],
+    queryFn: () => api.get<{ data: Lease[] }>('/leases').then((r) => r.data.data),
+  })
+  const leases = leasesResp ?? []
+
+  const mutation = useMutation({
+    mutationFn: recordPayment,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['payments'] }),
+  })
+
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(EMPTY_FORM)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    const { name, value } = e.target
-    if (name === 'paymentMethod') {
-      setForm({ ...emptyForm, tenant: form.tenant, amount: form.amount, dueDate: form.dueDate, status: form.status, paymentMethod: value })
-    } else {
-      setForm({ ...form, [name]: name === 'amount' ? Number(value) : value })
-    }
-  }
-
-  function selectMethod(id: string) {
-    setForm({ ...emptyForm, tenant: form.tenant, amount: form.amount, dueDate: form.dueDate, status: form.status, paymentMethod: id })
-  }
-
-  function selectMpesaAction(action: MpesaAction) {
-    setForm({ ...form, mpesaAction: action, phone: '', mpesaRef: '' })
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
+    setForm({ ...form, [e.target.name]: e.target.value })
   }
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    const ref = form.mpesaRef || form.paypalEmail || form.phone || ''
-    setPayments([...payments, { ...form, id: Date.now(), reference: ref }])
-    setForm(emptyForm)
-    setOpen(false)
+    mutation.mutate(
+      {
+        leaseId: form.leaseId,
+        amount: Number(form.amount),
+        paymentType: form.paymentType,
+        status: form.status,
+        periodFrom: form.periodFrom,
+        periodTo: form.periodTo,
+        referenceNo: form.referenceNo || undefined,
+        notes: form.notes || undefined,
+        paymentDate: form.paymentDate || undefined,
+      },
+      {
+        onSuccess: () => {
+          setForm(EMPTY_FORM)
+          setOpen(false)
+        },
+      },
+    )
   }
 
-  const methodLabel = (id: string) => methods.find((m) => m.id === id)?.label ?? id
-
-  const statusColors: Record<string, string> = {
-    Pending: 'bg-amber-50 text-amber-700',
-    Paid: 'bg-green-50 text-green-700',
-    Overdue: 'bg-red-50 text-red-700',
-  }
-
-  const canSave =
-    form.tenant &&
-    form.amount > 0 &&
-    form.paymentMethod &&
-    (form.paymentMethod === 'mpesa'
-      ? form.mpesaAction === 'initiate'
-        ? form.phone.length >= 9
-        : form.mpesaAction === 'reference'
-        ? form.mpesaRef.length > 0
-        : !!form.mpesaAction
-      : form.paymentMethod === 'paypal'
-      ? form.paypalEmail.length > 0
-      : true)
+  const canSave = form.leaseId && form.amount && Number(form.amount) > 0 && form.periodFrom && form.periodTo
 
   return (
     <div className="w-full">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Payments</h1>
-          <p className="text-sm text-gray-500">Rent & fee ledger.</p>
+          <p className="text-sm text-gray-500">Rent &amp; fee ledger.</p>
         </div>
         <button
           onClick={() => setOpen(true)}
@@ -118,7 +95,6 @@ export default function Payments() {
         </button>
       </div>
 
-      {/* Ledger table */}
       <div className="border border-gray-100 rounded-xl overflow-hidden">
         <div className="border-b border-gray-100 px-5 py-3">
           <p className="text-sm font-semibold text-gray-900">Ledger</p>
@@ -126,32 +102,31 @@ export default function Payments() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tenant</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount (KES)</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Due date</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment date</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
           <tbody>
-            {payments.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">No payments logged yet.</td>
-              </tr>
+            {isLoading ? (
+              <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">Loading...</td></tr>
+            ) : isError ? (
+              <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-red-500">Failed to load data.</td></tr>
+            ) : payments.length === 0 ? (
+              <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">No payments logged yet.</td></tr>
             ) : (
-              payments.map((p) => (
+              payments.filter((p) => !p.voided).map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-gray-900">{p.tenant}</td>
-                  <td className="px-5 py-3 text-right text-gray-900">{p.amount.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-gray-500">
-                    {methodLabel(p.paymentMethod)}
-                    {p.bank && <span className="text-gray-400"> · {p.bank}</span>}
-                  </td>
-                  <td className="px-5 py-3 text-gray-400 font-mono text-xs">{p.reference || '—'}</td>
-                  <td className="px-5 py-3 text-gray-500">{p.dueDate}</td>
+                  <td className="px-5 py-3 text-gray-700 font-medium">{p.paymentType}</td>
+                  <td className="px-5 py-3 text-right text-gray-900">{Number(p.amount).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">{p.periodFrom} → {p.periodTo}</td>
+                  <td className="px-5 py-3 text-gray-400 font-mono text-xs">{p.referenceNo || '—'}</td>
+                  <td className="px-5 py-3 text-gray-500">{p.paymentDate ?? '—'}</td>
                   <td className="px-5 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[p.status] ?? ''}`}>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[p.status] ?? 'bg-gray-100 text-gray-500'}`}>
                       {p.status}
                     </span>
                   </td>
@@ -162,221 +137,99 @@ export default function Payments() {
         </table>
       </div>
 
-      {/* Log Payment Modal */}
       {open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-gray-100">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-bold text-gray-900">Log payment</h2>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSave} className="px-7 py-6 space-y-5">
+            <form onSubmit={handleSave} className="overflow-y-auto">
+              <div className="px-8 py-6 space-y-4">
 
-              {/* Tenant */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Tenant</label>
-                <select name="tenant" value={form.tenant} onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-                  <option value="">Choose tenant</option>
-                </select>
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Amount</label>
-                <input name="amount" type="number" value={form.amount} onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
-              </div>
-
-              {/* Due date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Due date</label>
-                <input name="dueDate" type="date" value={form.dueDate} onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-                <select name="status" value={form.status} onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-                  <option>Pending</option>
-                  <option>Paid</option>
-                  <option>Overdue</option>
-                </select>
-              </div>
-
-              {/* Payment method */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Payment method</label>
-                {enabledMethods.length === 0 ? (
-                  <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-md px-3 py-2.5">
-                    No payment methods enabled. Configure in Admin → Payment Methods.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {enabledMethods.map((m) => (
-                      <button key={m.id} type="button" onClick={() => selectMethod(m.id)}
-                        className={`py-2.5 px-2 rounded-md border text-sm font-medium transition-colors ${
-                          form.paymentMethod === m.id
-                            ? 'border-gray-900 bg-gray-900 text-white'
-                            : 'border-gray-200 text-gray-700 hover:border-gray-400'
-                        }`}>
-                        {m.label}
-                      </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Lease <span className="text-red-400">*</span></label>
+                  <select name="leaseId" value={form.leaseId} onChange={handleChange}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
+                    <option value="">Select lease</option>
+                    {leases.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        Lease {l.id.slice(0, 8)}… · KES {Number(l.rentAmount).toLocaleString()}/mo
+                      </option>
                     ))}
+                  </select>
+                  {leases.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">No active leases found. Add a building, unit and lease first.</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Payment type <span className="text-red-400">*</span></label>
+                    <select name="paymentType" value={form.paymentType} onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
+                      {PAYMENT_TYPES.map((t) => <option key={t}>{t}</option>)}
+                    </select>
                   </div>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                    <select name="status" value={form.status} onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
+                      {PAYMENT_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Amount (KES) <span className="text-red-400">*</span></label>
+                  <input name="amount" type="number" min={0} value={form.amount} onChange={handleChange}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Period from <span className="text-red-400">*</span></label>
+                    <input name="periodFrom" type="date" value={form.periodFrom} onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Period to <span className="text-red-400">*</span></label>
+                    <input name="periodTo" type="date" value={form.periodTo} onChange={handleChange}
+                      min={form.periodFrom || undefined}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Payment date</label>
+                    <input name="paymentDate" type="date" value={form.paymentDate} onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Reference no.</label>
+                    <input name="referenceNo" type="text" value={form.referenceNo} onChange={handleChange}
+                      placeholder="e.g. M-Pesa ref"
+                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+                  <textarea name="notes" value={form.notes} onChange={handleChange} rows={2}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 resize-none" />
+                </div>
               </div>
 
-              {/* ── M-Pesa flow ── */}
-              {form.paymentMethod === 'mpesa' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment action</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { id: 'initiate', label: 'Initiate Payment' },
-                        { id: 'reference', label: 'Provide Reference' },
-                        { id: 'details', label: 'View Details' },
-                      ] as { id: MpesaAction; label: string }[]).map((opt) => (
-                        <button key={opt.id} type="button" onClick={() => selectMpesaAction(opt.id)}
-                          className={`py-2.5 px-2 rounded-md border text-sm font-medium transition-colors text-center ${
-                            form.mpesaAction === opt.id
-                              ? 'border-green-600 bg-green-50 text-green-700'
-                              : 'border-gray-200 text-gray-600 hover:border-gray-400'
-                          }`}>
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {form.mpesaAction === 'initiate' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Tenant phone number</label>
-                      <div className="flex gap-2">
-                        <span className="flex items-center px-3 border border-r-0 border-gray-200 rounded-l-md bg-gray-50 text-sm text-gray-500">
-                          +254
-                        </span>
-                        <input name="phone" type="tel" value={form.phone} onChange={handleChange}
-                          placeholder="7XX XXX XXX" maxLength={9}
-                          className="flex-1 border border-gray-200 rounded-r-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 placeholder:text-gray-300" />
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">An STK push will be sent to this number.</p>
-                    </div>
-                  )}
-
-                  {form.mpesaAction === 'reference' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">M-Pesa confirmation code</label>
-                      <input name="mpesaRef" value={form.mpesaRef} onChange={handleChange}
-                        placeholder="e.g. QA5X3Y2Z1"
-                        className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-gray-400 placeholder:text-gray-300 uppercase" />
-                      <p className="text-xs text-gray-400 mt-1">Enter the confirmation code from the tenant's M-Pesa message.</p>
-                    </div>
-                  )}
-
-                  {form.mpesaAction === 'details' && (
-                    <div className="bg-green-50 border border-green-100 rounded-xl p-5 space-y-3">
-                      <p className="text-sm font-semibold text-green-800">M-Pesa Payment Details</p>
-                      <div className="space-y-2">
-                        {[
-                          { label: 'Business / Paybill No', value: mpesaConfig.businessNo },
-                          { label: 'Account No', value: mpesaConfig.accountNo },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="flex items-center justify-between">
-                            <span className="text-xs text-green-700 font-medium">{label}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-green-900">{value}</span>
-                              <CopyButton text={value} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {mpesaConfig.instructions && (
-                        <p className="text-xs text-green-700 border-t border-green-200 pt-3">{mpesaConfig.instructions}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── PayPal flow ── */}
-              {form.paymentMethod === 'paypal' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Tenant PayPal email</label>
-                    <input name="paypalEmail" type="email" value={form.paypalEmail} onChange={handleChange}
-                      placeholder="tenant@example.com"
-                      className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 placeholder:text-gray-300" />
-                  </div>
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 space-y-2">
-                    <p className="text-sm font-semibold text-blue-800">PayPal Payment Details</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-blue-700 font-medium">Receive payment at</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-blue-900">{paypalConfig.email}</span>
-                        <CopyButton text={paypalConfig.email} />
-                      </div>
-                    </div>
-                    {paypalConfig.instructions && (
-                      <p className="text-xs text-blue-700 border-t border-blue-200 pt-3">{paypalConfig.instructions}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Bank Transfer flow ── */}
-              {form.paymentMethod === 'bank_transfer' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Bank</label>
-                    {enabledBanks.length === 0 ? (
-                      <p className="text-xs text-red-500">No banks enabled. Configure in Admin → Payment Methods.</p>
-                    ) : (
-                      <select name="bank" value={form.bank} onChange={handleChange}
-                        className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-                        <option value="">Select bank</option>
-                        {enabledBanks.map((b) => (
-                          <option key={b.id} value={b.name}>{b.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                  {form.bank && (
-                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 space-y-2">
-                      <p className="text-sm font-semibold text-gray-900">Bank Transfer Details</p>
-                      {[
-                        { label: 'Bank', value: form.bank },
-                        { label: 'Account Name', value: 'BuildAgent Properties Ltd' },
-                        { label: 'Account No', value: '1234567890' },
-                        { label: 'Branch', value: 'Main Branch' },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500 font-medium">{label}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">{value}</span>
-                            <CopyButton text={value} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-1">
+              <div className="flex justify-end gap-3 px-8 py-5 border-t border-gray-100 shrink-0">
                 <button type="button" onClick={() => setOpen(false)}
-                  className="flex-1 border border-gray-200 text-gray-700 text-sm font-medium py-2.5 rounded-md hover:border-gray-400 transition-colors">
+                  className="text-sm text-gray-500 hover:text-gray-800 px-4 py-2 rounded-md transition-colors">
                   Cancel
                 </button>
-                <button type="submit" disabled={!canSave}
-                  className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Save
+                <button type="submit" disabled={!canSave || mutation.isPending}
+                  className="bg-gray-900 text-white text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  {mutation.isPending ? 'Saving…' : 'Save payment'}
                 </button>
               </div>
             </form>

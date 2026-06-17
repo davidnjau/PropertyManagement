@@ -11,6 +11,7 @@ import {
   SquareUser,
   Settings,
   Bell,
+  CalendarClock,
 } from 'lucide-react'
 
 const workspaceNav = [
@@ -26,6 +27,7 @@ const adminNav = [
   { to: '/dashboard/admin/alerts', label: 'Alerts', icon: <Bell size={16} /> },
   { to: '/dashboard/admin/documents', label: 'Documents', icon: <FileText size={16} /> },
   { to: '/dashboard/admin/payment-methods', label: 'Payment Methods', icon: <Settings size={16} /> },
+  { to: '/dashboard/admin/lease-extensions', label: 'Lease Extensions', icon: <CalendarClock size={16} /> },
 ]
 
 function SidebarLink({ to, label, icon, end }: { to: string; label: string; icon: React.ReactNode; end?: boolean }) {
@@ -49,6 +51,16 @@ function SidebarLink({ to, label, icon, end }: { to: string; label: string; icon
 
 export default function DashboardLayout() {
   const navigate = useNavigate()
+
+  const storedUser = localStorage.getItem('ba_user')
+  const user = storedUser ? JSON.parse(storedUser) as { email: string; name: string } : null
+  const displayEmail = user?.email ?? ''
+
+  function handleSignOut() {
+    localStorage.removeItem('ba_token')
+    localStorage.removeItem('ba_user')
+    navigate('/auth')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
@@ -92,10 +104,10 @@ export default function DashboardLayout() {
         <div className="h-14 border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <SquareUser size={14} />
-            davidnjau21@gmail.com
+            {displayEmail}
           </div>
           <button
-            onClick={() => navigate('/auth')}
+            onClick={handleSignOut}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
             <LogOut size={14} />

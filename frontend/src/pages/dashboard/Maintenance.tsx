@@ -1,12 +1,22 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-
-type Request = { id: number; title: string; description: string; priority: string; building: string }
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchMaintenance, createMaintenanceRequest } from '../../services/maintenance'
 
 export default function Maintenance() {
-  const [requests, setRequests] = useState<Request[]>([])
+  const qc = useQueryClient()
+  const { data: requests = [], isLoading, isError } = useQuery({
+    queryKey: ['maintenance'],
+    queryFn: fetchMaintenance,
+  })
+
+  const mutation = useMutation({
+    mutationFn: createMaintenanceRequest,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['maintenance'] }),
+  })
+
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', priority: 'Medium', building: '' })
+  const [form, setForm] = useState({ title: '', description: '', priority: 'MEDIUM', category: 'GENERAL', unitId: '' })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -14,15 +24,18 @@ export default function Maintenance() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setRequests([...requests, { ...form, id: Date.now() }])
-    setForm({ title: '', description: '', priority: 'Medium', building: '' })
-    setOpen(false)
+    mutation.mutate(form, {
+      onSuccess: () => {
+        setForm({ title: '', description: '', priority: 'MEDIUM', category: 'GENERAL', unitId: '' })
+        setOpen(false)
+      },
+    })
   }
 
   const priorityColors: Record<string, string> = {
-    Low: 'bg-gray-100 text-gray-600',
-    Medium: 'bg-amber-50 text-amber-700',
-    High: 'bg-red-50 text-red-700',
+    LOW: 'bg-gray-100 text-gray-600',
+    MEDIUM: 'bg-amber-50 text-amber-700',
+    HIGH: 'bg-red-50 text-red-700',
   }
 
   return (
@@ -53,7 +66,19 @@ export default function Maintenance() {
             </tr>
           </thead>
           <tbody>
-            {requests.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={3} className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400">Loading...</p>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={3} className="px-5 py-8 text-center">
+                  <p className="text-sm text-red-500">Failed to load data.</p>
+                </td>
+              </tr>
+            ) : requests.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-5 py-8 text-center text-sm text-gray-400">No requests yet.</td>
               </tr>
@@ -61,7 +86,7 @@ export default function Maintenance() {
               requests.map((r) => (
                 <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-5 py-3 font-medium text-gray-900">{r.title}</td>
-                  <td className="px-5 py-3 text-gray-500">{r.building || '—'}</td>
+                  <td className="px-5 py-3 text-gray-500">{r.unitId || '—'}</td>
                   <td className="px-5 py-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${priorityColors[r.priority] ?? ''}`}>
                       {r.priority}
@@ -95,25 +120,35 @@ export default function Maintenance() {
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 resize-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
-                <select name="priority" value={form.priority} onChange={handleChange}
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+                <select name="category" value={form.category} onChange={handleChange}
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option>High</option>
+                  <option value="GENERAL">General</option>
+                  <option value="PLUMBING">Plumbing</option>
+                  <option value="ELECTRICAL">Electrical</option>
+                  <option value="STRUCTURAL">Structural</option>
+                  <option value="APPLIANCE">Appliance</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Building</label>
-                <select name="building" value={form.building} onChange={handleChange}
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
+                <select name="priority" value={form.priority} onChange={handleChange}
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-                  <option value="">Choose building</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Unit ID</label>
+                <input name="unitId" value={form.unitId} onChange={handleChange}
+                  placeholder="e.g. unit-uuid"
+                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400" />
+              </div>
               <div className="flex justify-end pt-2">
-                <button type="submit"
-                  className="bg-gray-200 text-gray-700 text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-300 transition-colors">
-                  Save
+                <button type="submit" disabled={mutation.isPending}
+                  className="bg-gray-200 text-gray-700 text-sm font-medium px-5 py-2 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50">
+                  {mutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>

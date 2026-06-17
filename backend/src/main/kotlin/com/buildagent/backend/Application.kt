@@ -3,6 +3,7 @@ package com.buildagent.backend
 import com.buildagent.backend.auth.LocalJwtService
 import com.buildagent.backend.auth.configureAuthentication
 import com.buildagent.backend.db.DatabaseFactory
+import com.buildagent.backend.db.SeedService
 import com.buildagent.backend.di.backendModule
 import com.buildagent.backend.kafka.KafkaFactory
 import com.buildagent.backend.plugins.*
@@ -30,6 +31,7 @@ fun Application.module() {
         password = environment.config.property("database.password").getString(),
         maxPoolSize = environment.config.propertyOrNull("database.maxPoolSize")?.getString()?.toIntOrNull() ?: 20
     )
+    SeedService.seed()
     RedisFactory.init(environment.config)
     KafkaFactory.init(environment.config)
 

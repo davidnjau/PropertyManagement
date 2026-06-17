@@ -1,21 +1,7 @@
 import { useState, useRef } from 'react'
 import { FileText, Download, Upload, X, CheckCircle } from 'lucide-react'
-
-type Doc = {
-  id: number
-  name: string
-  type: string
-  size: string
-  date: string
-  uploaded: boolean
-}
-
-const DEFAULT_DOCS: Doc[] = [
-  { id: 1, name: 'Lease Agreement — Jan 2026', type: 'PDF', size: '248 KB', date: '1 Jan 2026', uploaded: false },
-  { id: 2, name: 'Move-in Inspection Report', type: 'PDF', size: '1.2 MB', date: '3 Jan 2026', uploaded: false },
-  { id: 3, name: 'House Rules & Regulations', type: 'PDF', size: '84 KB', date: '1 Jan 2026', uploaded: false },
-  { id: 4, name: 'Deposit Receipt', type: 'PDF', size: '32 KB', date: '1 Jan 2026', uploaded: false },
-]
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fetchTenantDocuments, uploadTenantDocument } from '../../services/tenantPortal'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -24,7 +10,18 @@ function formatBytes(bytes: number): string {
 }
 
 export default function TenantDocuments() {
-  const [docs, setDocs] = useState<Doc[]>(DEFAULT_DOCS)
+  const qc = useQueryClient()
+
+  const { data: docs = [], isLoading, isError } = useQuery({
+    queryKey: ['tenant-documents'],
+    queryFn: fetchTenantDocuments,
+  })
+
+  const mutation = useMutation({
+    mutationFn: uploadTenantDocument,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-documents'] }),
+  })
+
   const [showModal, setShowModal] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [uploaded, setUploaded] = useState(false)
@@ -50,21 +47,21 @@ export default function TenantDocuments() {
     e.preventDefault()
     if (files.length === 0) return
 
-    const today = new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
-    const newDocs: Doc[] = files.map((f) => ({
-      id: Date.now() + Math.random(),
-      name: f.name.replace(/\.[^/.]+$/, ''), // strip extension for display name
-      type: f.name.split('.').pop()?.toUpperCase() ?? 'FILE',
-      size: formatBytes(f.size),
-      date: today,
-      uploaded: true,
-    }))
-
-    setDocs((prev) => [...newDocs, ...prev])
-    setFiles([])
-    setShowModal(false)
-    setUploaded(true)
-    setTimeout(() => setUploaded(false), 4000)
+    const uploadNext = (index: number) => {
+      if (index >= files.length) {
+        setFiles([])
+        setShowModal(false)
+        setUploaded(true)
+        setTimeout(() => setUploaded(false), 4000)
+        return
+      }
+      const fd = new FormData()
+      fd.append('file', files[index])
+      mutation.mutate(fd, {
+        onSuccess: () => uploadNext(index + 1),
+      })
+    }
+    uploadNext(0)
   }
 
   return (
@@ -95,27 +92,37 @@ export default function TenantDocuments() {
           <p className="text-sm font-semibold text-gray-900">All documents</p>
           <p className="text-xs text-gray-400">{docs.length} file{docs.length !== 1 ? 's' : ''}</p>
         </div>
-        <ul className="divide-y divide-gray-50">
-          {docs.map((d) => (
-            <li key={d.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3 min-w-0">
-                <FileText size={16} className="text-gray-400 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{d.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {d.type} · {d.size} · {d.date}
-                    {d.uploaded && (
-                      <span className="ml-2 text-green-600 font-medium">Uploaded by you</span>
-                    )}
-                  </p>
+        {isLoading ? (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm text-gray-400">Loading...</p>
+          </div>
+        ) : isError ? (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm text-red-500">Failed to load data.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-50">
+            {docs.map((d) => (
+              <li key={d.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText size={16} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{d.fileName}</p>
+                    <p className="text-xs text-gray-400">
+                      {d.docType} · {formatBytes(d.fileSize)} · {d.uploadedAt}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <button className="text-gray-400 hover:text-gray-700 transition-colors p-1 shrink-0 ml-3">
-                <Download size={15} />
-              </button>
-            </li>
-          ))}
-        </ul>
+                <a
+                  href={d.fileUrl ?? '#'}
+                  className="text-gray-400 hover:text-gray-700 transition-colors p-1 shrink-0 ml-3"
+                >
+                  <Download size={15} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Upload Modal */}
@@ -179,9 +186,9 @@ export default function TenantDocuments() {
                   Cancel
                 </button>
                 <button type="submit"
-                  disabled={files.length === 0}
+                  disabled={files.length === 0 || mutation.isPending}
                   className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Upload {files.length > 0 && `(${files.length})`}
+                  {mutation.isPending ? 'Uploading…' : `Upload${files.length > 0 ? ` (${files.length})` : ''}`}
                 </button>
               </div>
             </form>

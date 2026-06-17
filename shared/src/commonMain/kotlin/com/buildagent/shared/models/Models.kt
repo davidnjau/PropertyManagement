@@ -175,6 +175,9 @@ data class Payment(
     val isAdjustment: Boolean = false,
     val adjustmentReason: String? = null,
     val adjustedPaymentId: String? = null,
+    val agentNotes: String? = null,
+    val voided: Boolean = false,
+    val voidedAt: String? = null,
     val createdAt: String,
     val updatedAt: String,
     val lease: LeaseWithTenantUnit? = null,
@@ -233,6 +236,140 @@ data class MaintenanceRequest(
     val createdAt: String,
     val updatedAt: String,
     val unit: UnitWithBuilding? = null
+)
+
+@Serializable
+data class TenantPaymentSummary(
+    val totalPaid: Double,
+    val lastPaymentDate: String?,
+    val overdueCount: Int
+)
+
+@Serializable
+data class TenantDetail(
+    val tenant: Tenant,
+    val paymentSummary: TenantPaymentSummary,
+    val openMaintenanceCount: Int
+)
+
+@Serializable
+data class PaymentMethod(
+    val methodId: String,
+    val enabled: Boolean
+)
+
+@Serializable
+data class BankConfig(
+    val bankId: String,
+    val bankName: String,
+    val enabled: Boolean
+)
+
+@Serializable
+data class MpesaConfig(
+    val businessNo: String,
+    val accountNo: String,
+    val instructions: String?
+)
+
+@Serializable
+data class PaypalConfig(
+    val email: String,
+    val instructions: String?
+)
+
+@Serializable
+data class PaymentMethodsConfig(
+    val methods: List<PaymentMethod>,
+    val mpesaConfig: MpesaConfig?,
+    val paypalConfig: PaypalConfig?,
+    val banks: List<BankConfig>
+)
+
+@Serializable
+data class Document(
+    val id: String,
+    val agencyId: String,
+    val targetType: String,
+    val targetId: String,
+    val docType: String,
+    val fileName: String,
+    val fileSize: Long,
+    val mimeType: String,
+    val notes: String?,
+    val uploadedBy: String,
+    val fileUrl: String,
+    val uploadedAt: String
+)
+
+@Serializable
+data class Alert(
+    val id: String,
+    val agencyId: String,
+    val sentBy: String,
+    val targetType: String,
+    val targetLabel: String,
+    val buildingId: String?,
+    val rentDueFilter: String?,
+    val channels: List<String>,
+    val subject: String,
+    val message: String,
+    val recipientCount: Int,
+    val status: String,
+    val failureReason: String?,
+    val sentAt: String,
+    val recipients: List<AlertRecipient>? = null
+)
+
+@Serializable
+data class AlertRecipient(
+    val id: String,
+    val alertId: String,
+    val tenantId: String,
+    val tenantName: String,
+    val email: String?,
+    val phone: String?,
+    val inAppStatus: String,
+    val emailStatus: String,
+    val smsStatus: String
+)
+
+@Serializable
+data class LeaseExtensionRequest(
+    val id: String,
+    val agencyId: String,
+    val leaseId: String,
+    val tenantId: String,
+    val currentEndDate: String,
+    val proposedEndDate: String,
+    val durationMonths: Int?,
+    val customEndDate: String?,
+    val notes: String?,
+    val status: String,
+    val submittedAt: String,
+    val resolvedAt: String?,
+    val resolvedBy: String?,
+    val agentNotes: String?
+)
+
+@Serializable
+data class ContactInquiry(
+    val id: String,
+    val fullName: String,
+    val workEmail: String,
+    val company: String?,
+    val units: Int?,
+    val message: String,
+    val createdAt: String
+)
+
+@Serializable
+data class TenantOverview(
+    val rentDue: Double?,
+    val rentDueDate: String?,
+    val leaseEndDate: String?,
+    val leaseStatus: String?,
+    val recentPayments: List<Payment>
 )
 
 @Serializable

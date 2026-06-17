@@ -28,7 +28,10 @@ object DatabaseFactory {
             SchemaUtils.createMissingTablesAndColumns(
                 AgenciesTable, UsersTable, UserCredentialsTable, ClientsTable, BuildingsTable,
                 UnitsTable, TenantsTable, LeasesTable, PaymentsTable,
-                MaintenanceRequestsTable, AuditEventsTable
+                MaintenanceRequestsTable, AuditEventsTable,
+                PaymentMethodsConfigTable, BankConfigTable, MpesaConfigTable, PaypalConfigTable,
+                DocumentsTable, AlertsTable, AlertRecipientsTable, AlertTenantIdsTable,
+                LeaseExtensionRequestsTable, ContactInquiriesTable
             )
         }
     }

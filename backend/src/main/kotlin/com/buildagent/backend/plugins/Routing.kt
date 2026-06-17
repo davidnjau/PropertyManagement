@@ -20,6 +20,12 @@ fun Application.configureRouting() {
     val paymentService by inject<PaymentService>()
     val maintenanceService by inject<MaintenanceService>()
     val dashboardService by inject<DashboardService>()
+    val paymentMethodsService by inject<PaymentMethodsService>()
+    val documentsService by inject<DocumentsService>()
+    val alertsService by inject<AlertsService>()
+    val leaseExtensionService by inject<LeaseExtensionService>()
+    val tenantPortalService by inject<TenantPortalService>()
+    val contactService by inject<ContactService>()
     val kafka by inject<DomainEventProducer>()
 
     routing {
@@ -37,6 +43,12 @@ fun Application.configureRouting() {
             paymentRoutes(paymentService)
             maintenanceRoutes(maintenanceService, kafka)
             dashboardRoutes(dashboardService)
+            paymentMethodsRoutes(paymentMethodsService)
+            documentsRoutes(documentsService)
+            alertsRoutes(alertsService)
+            leaseExtensionRoutes(leaseExtensionService)
+            tenantPortalRoutes(tenantPortalService)
+            contactRoutes(contactService)
         }
     }
 }

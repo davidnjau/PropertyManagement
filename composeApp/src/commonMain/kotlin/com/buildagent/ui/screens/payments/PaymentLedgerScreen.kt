@@ -13,8 +13,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.Payment
+import com.buildagent.shared.models.PaymentType
+import com.buildagent.shared.models.RecordPaymentRequest
 import com.buildagent.ui.components.*
 import com.buildagent.ui.theme.*
+import com.buildagent.ui.utils.fmt2dp
 
 @Composable
 fun PaymentLedgerScreen() {
@@ -23,9 +26,23 @@ fun PaymentLedgerScreen() {
     val overdue by vm.overduePayments.collectAsState()
     val loading by vm.loading.collectAsState()
     var tab by remember { mutableStateOf(0) }
+    var showDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Payment Ledger", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Payment Ledger", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Button(
+                onClick = { showDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("+ Record Payment")
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
         TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
@@ -48,6 +65,132 @@ fun PaymentLedgerScreen() {
             }
         }
     }
+
+    if (showDialog) {
+        RecordPaymentDialog(
+            onDismiss = { showDialog = false },
+            onSave = { request ->
+                vm.recordPayment(
+                    request,
+                    onSuccess = { showDialog = false },
+                    onError = { }
+                )
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecordPaymentDialog(
+    onDismiss: () -> Unit,
+    onSave: (RecordPaymentRequest) -> Unit
+) {
+    val paymentTypes = PaymentType.entries.toList()
+    var leaseId by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf(PaymentType.RENT) }
+    var typeMenuExpanded by remember { mutableStateOf(false) }
+    var periodFrom by remember { mutableStateOf("") }
+    var periodTo by remember { mutableStateOf("") }
+    var referenceNo by remember { mutableStateOf("") }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record Payment", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
+                OutlinedTextField(
+                    value = leaseId,
+                    onValueChange = { leaseId = it },
+                    label = { Text("Lease ID *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text("Amount *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                ExposedDropdownMenuBox(
+                    expanded = typeMenuExpanded,
+                    onExpandedChange = { typeMenuExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedType.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Payment Type *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = typeMenuExpanded,
+                        onDismissRequest = { typeMenuExpanded = false }
+                    ) {
+                        paymentTypes.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type.name) },
+                                onClick = { selectedType = type; typeMenuExpanded = false }
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = periodFrom,
+                    onValueChange = { periodFrom = it },
+                    label = { Text("Period From (YYYY-MM-DD) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = periodTo,
+                    onValueChange = { periodTo = it },
+                    label = { Text("Period To (YYYY-MM-DD) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = referenceNo,
+                    onValueChange = { referenceNo = it },
+                    label = { Text("Reference No (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsedAmount = amount.toDoubleOrNull()
+                    if (leaseId.isBlank() || parsedAmount == null || periodFrom.isBlank() || periodTo.isBlank()) {
+                        errorMsg = "Lease ID, amount, and period dates are required."
+                        return@Button
+                    }
+                    onSave(
+                        RecordPaymentRequest(
+                            leaseId = leaseId.trim(),
+                            amount = parsedAmount,
+                            paymentType = selectedType,
+                            periodFrom = periodFrom.trim(),
+                            periodTo = periodTo.trim(),
+                            referenceNo = referenceNo.trim().ifBlank { null }
+                        )
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600)
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
@@ -71,7 +214,7 @@ fun PaymentRow(payment: Payment) {
                 Text("${payment.periodFrom} — ${payment.periodTo}", fontSize = 12.sp, color = Gray500)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("A${"%.2f".format(payment.amount)}", fontWeight = FontWeight.Bold)
+                Text("A$${payment.amount.fmt2dp()}", fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 StatusBadge(payment.status.name, paymentStatusBadge)
             }

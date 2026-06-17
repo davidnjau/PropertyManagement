@@ -1,4 +1,11 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import {
+  fetchPaymentMethods,
+  togglePaymentMethod,
+  toggleBankMethod,
+  saveMpesaConfig,
+  savePaypalConfig,
+} from '../services/paymentMethods'
 
 export type Bank = { id: string; name: string; enabled: boolean }
 
@@ -84,15 +91,30 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
   const [mpesaConfig, setMpesaConfig] = useState<MpesaConfig>(DEFAULT_MPESA)
   const [paypalConfig, setPaypalConfig] = useState<PaypalConfig>(DEFAULT_PAYPAL)
 
+  useEffect(() => {
+    fetchPaymentMethods()
+      .then((data) => {
+        setMethods(data.methods)
+        setMpesaConfig(data.mpesaConfig)
+        setPaypalConfig(data.paypalConfig)
+      })
+      .catch(() => {
+        // Keep defaults on failure — no-op
+      })
+  }, [])
+
   function toggleMethod(id: string) {
-    setMethods((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m))
-    )
+    setMethods((prev) => {
+      const updated = prev.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m))
+      const method = updated.find((m) => m.id === id)
+      if (method) togglePaymentMethod(id, method.enabled).catch(() => undefined)
+      return updated
+    })
   }
 
   function toggleBank(bankId: string) {
-    setMethods((prev) =>
-      prev.map((m) =>
+    setMethods((prev) => {
+      const updated = prev.map((m) =>
         m.id === 'bank_transfer'
           ? {
               ...m,
@@ -102,7 +124,22 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
             }
           : m
       )
-    )
+      const bank = updated
+        .find((m) => m.id === 'bank_transfer')
+        ?.banks?.find((b) => b.id === bankId)
+      if (bank) toggleBankMethod(bankId, bank.enabled).catch(() => undefined)
+      return updated
+    })
+  }
+
+  function updateMpesaConfig(config: MpesaConfig) {
+    setMpesaConfig(config)
+    saveMpesaConfig(config).catch(() => undefined)
+  }
+
+  function updatePaypalConfig(config: PaypalConfig) {
+    setPaypalConfig(config)
+    savePaypalConfig(config).catch(() => undefined)
   }
 
   return (
@@ -112,8 +149,8 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
       paypalConfig,
       toggleMethod,
       toggleBank,
-      updateMpesaConfig: setMpesaConfig,
-      updatePaypalConfig: setPaypalConfig,
+      updateMpesaConfig,
+      updatePaypalConfig,
     }}>
       {children}
     </PaymentMethodsContext.Provider>

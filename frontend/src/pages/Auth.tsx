@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2 } from 'lucide-react'
+import { signin, signup } from '../services/auth'
 
 type Role = 'agent' | 'tenant'
 
@@ -8,15 +9,33 @@ export default function Auth() {
   const [tab, setTab] = useState<'signin' | 'signup'>('signin')
   const [role, setRole] = useState<Role>('agent')
   const [form, setForm] = useState({ email: '', password: '', name: '' })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    navigate(role === 'tenant' ? '/tenant' : '/dashboard')
+    setError('')
+    setLoading(true)
+    try {
+      let result
+      if (tab === 'signin') {
+        result = await signin(form.email, form.password, role)
+      } else {
+        result = await signup(form.name, form.email, form.password, role)
+      }
+      localStorage.setItem('ba_token', result.token)
+      localStorage.setItem('ba_user', JSON.stringify(result.user))
+      navigate(result.user.role === 'TENANT' ? '/tenant' : '/dashboard')
+    } catch {
+      setError('Invalid credentials. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -98,11 +117,16 @@ export default function Auth() {
             />
           </div>
 
+          {error && (
+            <p className="text-sm text-red-500">{error}</p>
+          )}
+
           <button
             type="submit"
-            className="w-full bg-gray-900 text-white text-sm font-semibold py-3 rounded-md hover:bg-gray-700 transition-colors mt-2"
+            disabled={loading}
+            className="w-full bg-gray-900 text-white text-sm font-semibold py-3 rounded-md hover:bg-gray-700 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tab === 'signin' ? 'Sign in' : 'Create account'}
+            {loading ? 'Please wait…' : tab === 'signin' ? 'Sign in' : 'Create account'}
           </button>
         </form>
       </div>

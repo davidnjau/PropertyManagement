@@ -12,7 +12,7 @@ import io.ktor.server.routing.*
 import java.util.UUID
 
 fun Route.paymentRoutes(service: PaymentService) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/payments") {
             get {
                 val principal = call.principal<AgentPrincipal>()!!
@@ -34,6 +34,34 @@ fun Route.paymentRoutes(service: PaymentService) {
                 val principal = call.principal<AgentPrincipal>()!!
                 val payments = service.overdue(UUID.fromString(principal.agencyId))
                 call.respond(ApiResponse(payments))
+            }
+
+            get("/{id}") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val id = UUID.fromString(call.parameters["id"]!!)
+                val payment = service.getById(UUID.fromString(principal.agencyId), id)
+                    ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("error" to "Payment not found"))
+                call.respond(ApiResponse(payment))
+            }
+
+            patch("/{id}") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val id = UUID.fromString(call.parameters["id"]!!)
+                val req = call.receive<UpdatePaymentRequest>()
+                val payment = service.updatePayment(UUID.fromString(principal.agencyId), UUID.fromString(principal.userId), id, req)
+                    ?: return@patch call.respond(HttpStatusCode.NotFound, mapOf("error" to "Payment not found"))
+                call.respond(ApiResponse(payment))
+            }
+
+            delete("/{id}") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val id = UUID.fromString(call.parameters["id"]!!)
+                val voided = service.voidPayment(UUID.fromString(principal.agencyId), UUID.fromString(principal.userId), id)
+                if (!voided) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Payment not found"))
+                } else {
+                    call.respond(HttpStatusCode.NoContent)
+                }
             }
 
             post("/{id}/adjust") {

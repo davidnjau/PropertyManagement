@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import DashboardLayout from './components/DashboardLayout'
 import TenantLayout from './components/TenantLayout'
 import { PaymentMethodsProvider } from './context/PaymentMethodsContext'
+
+const queryClient = new QueryClient()
 import Home from './pages/Home'
 import Solutions from './pages/Solutions'
 import Pricing from './pages/Pricing'
@@ -19,6 +22,7 @@ import Documents from './pages/dashboard/Documents'
 import PaymentMethodsAdmin from './pages/dashboard/admin/PaymentMethods'
 import Alerts from './pages/dashboard/admin/Alerts'
 import AdminDocuments from './pages/dashboard/admin/Documents'
+import LeaseExtensions from './pages/dashboard/admin/LeaseExtensions'
 import TenantOverview from './pages/tenant/Overview'
 import PayRent from './pages/tenant/PayRent'
 import TenantLease from './pages/tenant/Lease'
@@ -27,6 +31,7 @@ import TenantDocuments from './pages/tenant/Documents'
 
 export default function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <PaymentMethodsProvider>
     <BrowserRouter>
       <Routes>
@@ -44,6 +49,7 @@ export default function App() {
           <Route path="admin/alerts" element={<Alerts />} />
           <Route path="admin/documents" element={<AdminDocuments />} />
           <Route path="admin/payment-methods" element={<PaymentMethodsAdmin />} />
+          <Route path="admin/lease-extensions" element={<LeaseExtensions />} />
         </Route>
 
         {/* Tenant portal — tenant sidebar layout */}
@@ -77,5 +83,6 @@ export default function App() {
       </Routes>
     </BrowserRouter>
     </PaymentMethodsProvider>
+    </QueryClientProvider>
   )
 }
