@@ -11,6 +11,7 @@ import {
   SquareUser,
   Settings,
   Bell,
+  CalendarClock,
 } from 'lucide-react'
 
 const workspaceNav = [
@@ -26,6 +27,7 @@ const adminNav = [
   { to: '/dashboard/admin/alerts', label: 'Alerts', icon: <Bell size={16} /> },
   { to: '/dashboard/admin/documents', label: 'Documents', icon: <FileText size={16} /> },
   { to: '/dashboard/admin/payment-methods', label: 'Payment Methods', icon: <Settings size={16} /> },
+  { to: '/dashboard/admin/lease-extensions', label: 'Lease Extensions', icon: <CalendarClock size={16} /> },
 ]
 
 function SidebarLink({ to, label, icon, end }: { to: string; label: string; icon: React.ReactNode; end?: boolean }) {

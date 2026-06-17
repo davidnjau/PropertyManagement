@@ -22,6 +22,7 @@ import Documents from './pages/dashboard/Documents'
 import PaymentMethodsAdmin from './pages/dashboard/admin/PaymentMethods'
 import Alerts from './pages/dashboard/admin/Alerts'
 import AdminDocuments from './pages/dashboard/admin/Documents'
+import LeaseExtensions from './pages/dashboard/admin/LeaseExtensions'
 import TenantOverview from './pages/tenant/Overview'
 import PayRent from './pages/tenant/PayRent'
 import TenantLease from './pages/tenant/Lease'
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="admin/alerts" element={<Alerts />} />
           <Route path="admin/documents" element={<AdminDocuments />} />
           <Route path="admin/payment-methods" element={<PaymentMethodsAdmin />} />
+          <Route path="admin/lease-extensions" element={<LeaseExtensions />} />
         </Route>
 
         {/* Tenant portal — tenant sidebar layout */}
