@@ -5,6 +5,7 @@ import com.buildagent.ui.screens.admin.AdminAlertsViewModel
 import com.buildagent.ui.screens.admin.AdminDocumentsViewModel
 import com.buildagent.ui.screens.admin.AdminLeaseExtensionsViewModel
 import com.buildagent.ui.screens.admin.PaymentMethodsViewModel
+import com.buildagent.ui.screens.dashboard.DashboardViewModel
 import com.buildagent.ui.screens.maintenance.MaintenanceViewModel
 import com.buildagent.ui.screens.payments.PaymentsViewModel
 import com.buildagent.ui.screens.portfolio.PortfolioViewModel
@@ -15,6 +16,7 @@ import org.koin.dsl.module
 fun appModules(baseUrl: String, tokenProvider: suspend () -> String) = listOf(
     sharedModule(baseUrl, tokenProvider),
     module {
+        factory { DashboardViewModel(get()) }
         factory { PortfolioViewModel(get()) }
         factory { TenancyViewModel(get()) }
         factory { PaymentsViewModel(get()) }
