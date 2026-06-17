@@ -16,7 +16,7 @@ data class RegisterRequest(
 )
 
 @Serializable
-data class LoginRequest(val email: String, val password: String)
+data class LoginRequest(val email: String, val password: String, val role: String? = null)
 
 @Serializable
 data class AuthResponse(val token: String, val user: AuthUser)

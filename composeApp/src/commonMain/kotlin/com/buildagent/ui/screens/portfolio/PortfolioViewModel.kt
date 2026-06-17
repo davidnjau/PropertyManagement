@@ -4,6 +4,7 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.buildagent.shared.api.BuildAgentClient
 import com.buildagent.shared.models.Building
+import com.buildagent.shared.models.CreateBuildingRequest
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -29,6 +30,18 @@ class PortfolioViewModel(private val client: BuildAgentClient) : ScreenModel {
                 _error.value = e.message
             } finally {
                 _loading.value = false
+            }
+        }
+    }
+
+    fun createBuilding(request: CreateBuildingRequest, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        screenModelScope.launch {
+            try {
+                client.createBuilding(request)
+                loadBuildings()
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to create building.")
             }
         }
     }

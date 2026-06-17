@@ -174,4 +174,120 @@ class BuildAgentClient(
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    // ── Auth ─────────────────────────────────────────────────────────────────
+
+    suspend fun signIn(email: String, password: String, role: String? = null): ApiResponse<AuthResponse> =
+        http.post(url("/api/v1/auth/signin")) {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(email, password, role))
+        }.body()
+
+    suspend fun signUp(request: RegisterRequest): ApiResponse<AuthResponse> =
+        http.post(url("/api/v1/auth/signup")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    // ── Admin Alerts ──────────────────────────────────────────────────────────
+
+    suspend fun getAlerts(): ApiResponse<List<Alert>> =
+        http.get(url("/api/v1/admin/alerts")) { auth(this) }.body()
+
+    suspend fun createAlert(request: CreateAlertRequest): ApiResponse<Alert> =
+        http.post(url("/api/v1/admin/alerts")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    // ── Admin Documents ───────────────────────────────────────────────────────
+
+    suspend fun getAdminDocuments(entityType: String? = null): ApiResponse<List<Document>> =
+        http.get(url("/api/v1/admin/documents")) {
+            auth(this)
+            entityType?.let { parameter("entityType", it) }
+        }.body()
+
+    suspend fun deleteAdminDocument(id: String) =
+        http.delete(url("/api/v1/admin/documents/$id")) { auth(this) }
+
+    // ── Admin Payment Methods ─────────────────────────────────────────────────
+
+    suspend fun getPaymentMethods(): ApiResponse<PaymentMethodsConfig> =
+        http.get(url("/api/v1/admin/payment-methods")) { auth(this) }.body()
+
+    suspend fun togglePaymentMethod(id: String, enabled: Boolean) =
+        http.put(url("/api/v1/admin/payment-methods/$id/toggle")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(ToggleMethodRequest(enabled))
+        }
+
+    suspend fun toggleBank(bankId: String, enabled: Boolean) =
+        http.put(url("/api/v1/admin/payment-methods/bank/$bankId/toggle")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(ToggleMethodRequest(enabled))
+        }
+
+    suspend fun updateMpesaConfig(request: UpdateMpesaConfigRequest) =
+        http.put(url("/api/v1/admin/payment-methods/mpesa")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    suspend fun updatePaypalConfig(request: UpdatePaypalConfigRequest) =
+        http.put(url("/api/v1/admin/payment-methods/paypal")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    // ── Admin Lease Extensions ────────────────────────────────────────────────
+
+    suspend fun getLeaseExtensions(): ApiResponse<List<LeaseExtensionRequest>> =
+        http.get(url("/api/v1/admin/lease-extension-requests")) { auth(this) }.body()
+
+    suspend fun resolveLeaseExtension(id: String, status: String, agentNotes: String? = null): ApiResponse<LeaseExtensionRequest> =
+        http.patch(url("/api/v1/admin/lease-extension-requests/$id")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(ResolveLeaseExtensionRequest(status, agentNotes))
+        }.body()
+
+    // ── Tenant Portal ─────────────────────────────────────────────────────────
+
+    suspend fun getTenantOverview(): ApiResponse<TenantOverview> =
+        http.get(url("/api/v1/tenant/overview")) { auth(this) }.body()
+
+    suspend fun getTenantLease(): ApiResponse<Lease> =
+        http.get(url("/api/v1/tenant/lease")) { auth(this) }.body()
+
+    suspend fun getTenantPayments(): ApiResponse<List<Payment>> =
+        http.get(url("/api/v1/tenant/payments")) { auth(this) }.body()
+
+    suspend fun getTenantMaintenance(): ApiResponse<List<MaintenanceRequest>> =
+        http.get(url("/api/v1/tenant/maintenance")) { auth(this) }.body()
+
+    suspend fun createTenantMaintenance(request: CreateMaintenanceRequest): ApiResponse<MaintenanceRequest> =
+        http.post(url("/api/v1/tenant/maintenance")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun getTenantDocuments(): ApiResponse<List<Document>> =
+        http.get(url("/api/v1/tenant/documents")) { auth(this) }.body()
+
+    suspend fun getTenantPaymentMethods(): ApiResponse<PaymentMethodsConfig> =
+        http.get(url("/api/v1/tenant/payment-methods")) { auth(this) }.body()
+
+    suspend fun submitLeaseExtension(request: CreateLeaseExtensionRequest): ApiResponse<LeaseExtensionRequest> =
+        http.post(url("/api/v1/tenant/lease/extension-request")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
 }
