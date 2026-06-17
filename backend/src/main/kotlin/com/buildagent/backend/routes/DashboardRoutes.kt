@@ -10,7 +10,7 @@ import io.ktor.server.routing.*
 import java.util.UUID
 
 fun Route.dashboardRoutes(service: DashboardService) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/dashboard") {
             get("/agent") {
                 val principal = call.principal<AgentPrincipal>()!!

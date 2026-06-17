@@ -17,7 +17,7 @@ import kotlinx.datetime.Clock
 import java.util.UUID
 
 fun Route.leaseRoutes(leaseService: LeaseService, kafka: DomainEventProducer) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/leases") {
             get {
                 val p = call.userPrincipal()

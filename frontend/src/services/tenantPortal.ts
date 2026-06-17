@@ -2,110 +2,112 @@ import api from './api'
 import type { PaymentMethodsResponse } from './paymentMethods'
 
 export type TenantOverview = {
-  rentDue: number
-  rentDueDate: string
-  rentStatus: string
-  leaseEndDate: string
+  rentDue?: number
+  rentDueDate?: string
+  leaseEndDate?: string
+  leaseStatus?: string
   recentPayments: {
-    month: string
+    id: string
     amount: number
-    method: string
     status: string
+    periodFrom: string
+    periodTo: string
+    paymentDate?: string
   }[]
 }
 
 export type TenantLease = {
-  unit: string
-  building: string
-  floor: string
+  id: string
+  unitId: string
+  tenantId: string
   startDate: string
-  endDate: string
-  monthlyRent: string
-  deposit: string
+  endDate?: string
+  rentAmount: number
+  bondAmount: number
   status: string
+  paymentDay: number
 }
 
 export type TenantPayment = {
   id: string
-  period: string
+  leaseId: string
   amount: number
-  method: string
-  bank: string
-  reference: string
-  date: string
+  paymentType: string
+  status: string
+  periodFrom: string
+  periodTo: string
+  referenceNo?: string
+  paymentDate?: string
+  createdAt: string
 }
 
 export type TenantMaintenanceRequest = {
   id: string
+  unitId: string
+  category: string
+  priority: string
   title: string
   description: string
-  priority: string
-  date: string
   status: string
+  createdAt: string
 }
 
 export type TenantDocument = {
   id: string
-  name: string
-  type: string
-  size: string
-  date: string
-  uploaded: boolean
-  url?: string
-}
-
-export type SubmitTenantPaymentInput = {
-  period: string
-  amount: number
-  method: string
-  bank: string
-  reference: string
+  targetType: string
+  targetId: string
+  docType: string
+  fileName: string
+  fileSize: number
+  fileUrl: string
+  notes?: string
+  uploadedAt: string
 }
 
 export type SubmitTenantMaintenanceInput = {
+  unitId: string
+  category: string
+  priority: string
   title: string
   description: string
-  priority: string
 }
 
 export type SubmitLeaseExtensionInput = {
-  duration: string
-  customDate?: string
-  notes: string
+  leaseId: string
+  durationMonths?: number
+  customEndDate?: string
+  notes?: string
 }
 
 export const fetchTenantOverview = (): Promise<TenantOverview> =>
-  api.get<TenantOverview>('/tenant/overview').then((r) => r.data)
+  api.get<{ data: TenantOverview }>('/tenant/overview').then((r) => r.data.data)
 
 export const fetchTenantLease = (): Promise<TenantLease> =>
-  api.get<TenantLease>('/tenant/lease').then((r) => r.data)
+  api.get<{ data: TenantLease }>('/tenant/lease').then((r) => r.data.data)
 
 export const fetchTenantPayments = (): Promise<TenantPayment[]> =>
-  api.get<TenantPayment[]>('/tenant/payments').then((r) => r.data)
-
-export const submitTenantPayment = (data: SubmitTenantPaymentInput): Promise<TenantPayment> =>
-  api.post<TenantPayment>('/tenant/payments', data).then((r) => r.data)
+  api.get<{ data: TenantPayment[] }>('/tenant/payments').then((r) => r.data.data)
 
 export const fetchTenantMaintenance = (): Promise<TenantMaintenanceRequest[]> =>
-  api.get<TenantMaintenanceRequest[]>('/tenant/maintenance').then((r) => r.data)
+  api.get<{ data: TenantMaintenanceRequest[] }>('/tenant/maintenance').then((r) => r.data.data)
 
 export const createTenantMaintenanceRequest = (
   data: SubmitTenantMaintenanceInput,
 ): Promise<TenantMaintenanceRequest> =>
-  api.post<TenantMaintenanceRequest>('/tenant/maintenance', data).then((r) => r.data)
+  api.post<{ data: TenantMaintenanceRequest }>('/tenant/maintenance', data).then((r) => r.data.data)
 
 export const fetchTenantDocuments = (): Promise<TenantDocument[]> =>
-  api.get<TenantDocument[]>('/tenant/documents').then((r) => r.data)
+  api.get<{ data: TenantDocument[] }>('/tenant/documents').then((r) => r.data.data)
 
 export const uploadTenantDocument = (formData: FormData): Promise<TenantDocument> =>
   api
-    .post<TenantDocument>('/tenant/documents', formData, {
+    .post<{ data: TenantDocument }>('/tenant/documents', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    .then((r) => r.data)
+    .then((r) => r.data.data)
 
 export const fetchTenantPaymentMethods = (): Promise<PaymentMethodsResponse> =>
-  api.get<PaymentMethodsResponse>('/tenant/payment-methods').then((r) => r.data)
+  api.get<{ data: PaymentMethodsResponse }>('/tenant/payment-methods').then((r) => r.data.data)
 
 export const submitLeaseExtensionRequest = (data: SubmitLeaseExtensionInput): Promise<void> =>
   api.post('/tenant/lease/extension-request', data).then(() => undefined)

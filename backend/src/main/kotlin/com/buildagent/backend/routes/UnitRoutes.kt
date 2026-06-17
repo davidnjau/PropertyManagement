@@ -13,7 +13,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.unitRoutes(unitService: UnitService) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/buildings/{buildingId}/units") {
             get {
                 val p = call.userPrincipal()

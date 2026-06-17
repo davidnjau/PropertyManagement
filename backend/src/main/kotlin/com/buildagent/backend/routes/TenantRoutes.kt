@@ -12,7 +12,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.tenantRoutes(tenantService: TenantService) {
-    authenticate("auth0") {
+    authenticate("local-auth") {
         route("/tenants") {
             get {
                 val p = call.userPrincipal()
