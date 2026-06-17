@@ -1,14 +1,18 @@
 package com.buildagent.backend.services
 
 import com.buildagent.backend.db.dbQuery
+import com.buildagent.backend.db.extensions.toDocument
+import com.buildagent.backend.db.extensions.toExtensionRequest
 import com.buildagent.backend.db.extensions.toLease
 import com.buildagent.backend.db.extensions.toMaintenance
 import com.buildagent.backend.db.extensions.toPayment
 import com.buildagent.backend.db.tables.*
 import com.buildagent.shared.models.*
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
@@ -125,6 +129,77 @@ class TenantPortalService {
             .limit(limit, offset)
             .map { it.toMaintenance() }
         requests to total
+    }
+
+    suspend fun getDocuments(agencyId: UUID, userId: String): List<Document> = dbQuery {
+        val tenantId = findTenantId(userId) ?: return@dbQuery emptyList<Document>()
+        val leaseIds = LeasesTable.selectAll()
+            .where { LeasesTable.tenantId eq tenantId }
+            .map { it[LeasesTable.id].value }
+        if (leaseIds.isEmpty()) return@dbQuery emptyList<Document>()
+        DocumentsTable.selectAll()
+            .where {
+                (DocumentsTable.agencyId eq agencyId) and
+                (DocumentsTable.targetId inList leaseIds) and
+                DocumentsTable.deletedAt.isNull()
+            }
+            .orderBy(DocumentsTable.uploadedAt, SortOrder.DESC)
+            .map { it.toDocument() }
+    }
+
+    suspend fun getPaymentMethods(agencyId: UUID): PaymentMethodsConfig = dbQuery {
+        val methods = PaymentMethodsConfigTable.selectAll()
+            .where { PaymentMethodsConfigTable.agencyId eq agencyId }
+            .map { PaymentMethod(it[PaymentMethodsConfigTable.methodId], it[PaymentMethodsConfigTable.enabled]) }
+        val banks = BankConfigTable.selectAll()
+            .where { BankConfigTable.agencyId eq agencyId }
+            .map { BankConfig(it[BankConfigTable.bankId], it[BankConfigTable.bankName], it[BankConfigTable.enabled]) }
+        val mpesa = MpesaConfigTable.selectAll()
+            .where { MpesaConfigTable.agencyId eq agencyId }
+            .firstOrNull()?.let {
+                MpesaConfig(it[MpesaConfigTable.businessNo], it[MpesaConfigTable.accountNo], it[MpesaConfigTable.instructions])
+            }
+        val paypal = PaypalConfigTable.selectAll()
+            .where { PaypalConfigTable.agencyId eq agencyId }
+            .firstOrNull()?.let {
+                PaypalConfig(it[PaypalConfigTable.email], it[PaypalConfigTable.instructions])
+            }
+        PaymentMethodsConfig(
+            methods = methods,
+            banks = banks,
+            mpesaConfig = mpesa,
+            paypalConfig = paypal
+        )
+    }
+
+    suspend fun submitLeaseExtension(agencyId: UUID, userId: String, req: CreateLeaseExtensionRequest): LeaseExtensionRequest = dbQuery {
+        val tenantId = findTenantId(userId) ?: error("Tenant not found")
+        val leaseRow = LeasesTable.selectAll()
+            .where { (LeasesTable.id eq UUID.fromString(req.leaseId)) and (LeasesTable.tenantId eq tenantId) }
+            .firstOrNull() ?: error("Lease not found")
+
+        val currentEnd = leaseRow[LeasesTable.endDate]
+            ?: error("Lease has no end date; cannot submit extension request")
+        val proposedEnd = when {
+            req.customEndDate != null -> LocalDate.parse(req.customEndDate)
+            req.durationMonths != null -> currentEnd.plus(req.durationMonths, DateTimeUnit.MONTH)
+            else -> error("Provide either durationMonths or customEndDate")
+        }
+
+        val now: Instant = Clock.System.now()
+        val id = LeaseExtensionRequestsTable.insertAndGetId {
+            it[LeaseExtensionRequestsTable.agencyId] = agencyId
+            it[LeaseExtensionRequestsTable.leaseId] = UUID.fromString(req.leaseId)
+            it[LeaseExtensionRequestsTable.tenantId] = tenantId
+            it[LeaseExtensionRequestsTable.currentEndDate] = currentEnd
+            it[LeaseExtensionRequestsTable.proposedEndDate] = proposedEnd
+            it[LeaseExtensionRequestsTable.durationMonths] = req.durationMonths
+            it[LeaseExtensionRequestsTable.customEndDate] = req.customEndDate?.let { d -> LocalDate.parse(d) }
+            it[LeaseExtensionRequestsTable.notes] = req.notes
+            it[LeaseExtensionRequestsTable.status] = "Pending"
+            it[LeaseExtensionRequestsTable.submittedAt] = now
+        }
+        LeaseExtensionRequestsTable.selectAll().where { LeaseExtensionRequestsTable.id eq id }.single().toExtensionRequest()
     }
 
     suspend fun submitMaintenance(agencyId: UUID, userId: String, req: CreateMaintenanceRequest): MaintenanceRequest = dbQuery {

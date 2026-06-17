@@ -1,5 +1,6 @@
 package com.buildagent.backend.services
 
+import com.buildagent.backend.auth.PasswordHasher
 import com.buildagent.backend.db.dbQuery
 import com.buildagent.backend.db.extensions.toTenant
 import com.buildagent.backend.db.tables.*
@@ -10,6 +11,7 @@ import kotlinx.datetime.LocalDate
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import java.util.Base64
 import java.util.UUID
 
 class TenantService {
@@ -37,8 +39,10 @@ class TenantService {
 
     suspend fun createTenant(agencyId: String, request: CreateTenantRequest): Tenant = dbQuery {
         val now: Instant = Clock.System.now()
+        val agencyUUID = UUID.fromString(agencyId)
+
         val id = TenantsTable.insertAndGetId {
-            it[TenantsTable.agencyId] = UUID.fromString(agencyId)
+            it[TenantsTable.agencyId] = agencyUUID
             it[fullName] = request.fullName
             it[email] = request.email
             it[phone] = request.phone
@@ -51,6 +55,33 @@ class TenantService {
             it[createdAt] = now
             it[updatedAt] = now
         }
+
+        // Create login credentials so the tenant can log in via the tenant portal
+        if (!request.password.isNullOrBlank()) {
+            val existingUser = UsersTable.selectAll()
+                .where { UsersTable.email eq request.email }
+                .firstOrNull()
+            if (existingUser == null) {
+                val salt = PasswordHasher.generateSalt()
+                val hash = PasswordHasher.hash(request.password, salt)
+                val userId = UsersTable.insertAndGetId {
+                    it[UsersTable.agencyId] = agencyUUID
+                    it[UsersTable.auth0Sub] = "local|${UUID.randomUUID()}"
+                    it[UsersTable.email] = request.email
+                    it[UsersTable.fullName] = request.fullName
+                    it[UsersTable.role] = UserRole.TENANT
+                    it[UsersTable.phone] = request.phone
+                    it[UsersTable.createdAt] = now
+                    it[UsersTable.updatedAt] = now
+                }
+                UserCredentialsTable.insertAndGetId {
+                    it[UserCredentialsTable.userId] = userId
+                    it[UserCredentialsTable.passwordHash] = hash
+                    it[UserCredentialsTable.salt] = Base64.getEncoder().encodeToString(salt)
+                }
+            }
+        }
+
         TenantsTable.selectAll().where { TenantsTable.id eq id }.first().toTenant()
     }
 

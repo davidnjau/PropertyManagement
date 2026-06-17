@@ -189,6 +189,18 @@ class BuildAgentClient(
             setBody(request)
         }.body()
 
+    // ── Admin Users ───────────────────────────────────────────────────────────
+
+    suspend fun getAdminUsers(): ApiResponse<List<AdminUserResponse>> =
+        http.get(url("/api/v1/admin/users")) { auth(this) }.body()
+
+    suspend fun createAdminUser(request: CreateUserRequest): ApiResponse<AdminUserResponse> =
+        http.post(url("/api/v1/admin/users")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
     // ── Admin Alerts ──────────────────────────────────────────────────────────
 
     suspend fun getAlerts(): ApiResponse<List<Alert>> =
@@ -286,6 +298,13 @@ class BuildAgentClient(
 
     suspend fun submitLeaseExtension(request: CreateLeaseExtensionRequest): ApiResponse<LeaseExtensionRequest> =
         http.post(url("/api/v1/tenant/lease/extension-request")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun recordTenantPayment(request: RecordPaymentRequest): ApiResponse<Payment> =
+        http.post(url("/api/v1/tenant/payments")) {
             auth(this)
             contentType(ContentType.Application.Json)
             setBody(request)

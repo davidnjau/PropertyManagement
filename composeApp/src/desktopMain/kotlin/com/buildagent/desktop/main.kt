@@ -8,10 +8,7 @@ import org.koin.core.context.startKoin
 
 fun main() = application {
     startKoin {
-        modules(appModules(
-            baseUrl = System.getenv("API_URL") ?: "http://localhost:3001",
-            tokenProvider = { System.getenv("API_TOKEN") ?: "" }
-        ))
+        modules(appModules(baseUrl = System.getenv("API_URL") ?: "http://localhost:3001"))
     }
     Window(onCloseRequest = ::exitApplication, title = "BuildAgent") {
         App()

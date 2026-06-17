@@ -9,6 +9,8 @@ version = "1.0.0"
 
 kotlin { jvmToolchain(21) }
 
+tasks.test { useJUnitPlatform() }
+
 application {
     mainClass.set("com.buildagent.backend.ApplicationKt")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=true")
@@ -63,4 +65,12 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.datetime)
+
+    // Testing
+    testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.kotlin.test.junit5)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.mockk)
+    testImplementation(libs.h2database)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

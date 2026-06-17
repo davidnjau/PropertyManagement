@@ -74,6 +74,17 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.swing)
             }
         }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+
+        val desktopTest by getting {
+            dependencies {
+                implementation(libs.mockk)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
     }
 }
 

@@ -56,6 +56,25 @@ fun Route.tenantPortalRoutes(service: TenantPortalService) {
                 val result = service.submitMaintenance(UUID.fromString(principal.agencyId), principal.userId, req)
                 call.respond(HttpStatusCode.Created, ApiResponse(result))
             }
+
+            get("/documents") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val docs = service.getDocuments(UUID.fromString(principal.agencyId), principal.userId)
+                call.respond(ApiResponse(docs))
+            }
+
+            get("/payment-methods") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val config = service.getPaymentMethods(UUID.fromString(principal.agencyId))
+                call.respond(ApiResponse(config))
+            }
+
+            post("/lease/extension-request") {
+                val principal = call.principal<AgentPrincipal>()!!
+                val req = call.receive<CreateLeaseExtensionRequest>()
+                val result = service.submitLeaseExtension(UUID.fromString(principal.agencyId), principal.userId, req)
+                call.respond(HttpStatusCode.Created, ApiResponse(result))
+            }
         }
     }
 }

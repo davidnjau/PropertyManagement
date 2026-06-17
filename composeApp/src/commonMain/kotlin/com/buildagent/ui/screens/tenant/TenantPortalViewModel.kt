@@ -9,6 +9,7 @@ import com.buildagent.shared.models.Document
 import com.buildagent.shared.models.Lease
 import com.buildagent.shared.models.MaintenanceRequest
 import com.buildagent.shared.models.Payment
+import com.buildagent.shared.models.RecordPaymentRequest
 import com.buildagent.shared.models.TenantOverview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -75,6 +76,18 @@ class TenantPortalViewModel(private val client: BuildAgentClient) : ScreenModel 
                 onSuccess()
             } catch (e: Exception) {
                 _error.value = e.message
+            }
+        }
+    }
+
+    fun recordPayment(request: RecordPaymentRequest, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        screenModelScope.launch {
+            try {
+                client.recordTenantPayment(request)
+                loadAll()
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Payment failed")
             }
         }
     }
