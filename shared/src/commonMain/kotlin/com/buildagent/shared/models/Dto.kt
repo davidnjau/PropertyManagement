@@ -72,6 +72,24 @@ data class CreateBuildingRequest(
 )
 
 @Serializable
+data class UpdateBuildingRequest(
+    val name: String? = null,
+    val address: String? = null,
+    val city: String? = null,
+    val units: Int? = null,
+    val notes: String? = null
+)
+
+@Serializable
+data class UpdatePaymentRequest(
+    val status: PaymentStatus? = null,
+    val amount: Double? = null,
+    val dueDate: String? = null,
+    val reference: String? = null,
+    val agentNotes: String? = null
+)
+
+@Serializable
 data class CreateUnitRequest(
     val unitNumber: String,
     val floor: Int? = null,
@@ -196,6 +214,68 @@ data class DashboardData(
 
 @Serializable
 data class UnitStats(val total: Int, val occupied: Int, val vacant: Int)
+
+@Serializable
+data class ToggleMethodRequest(val enabled: Boolean)
+
+@Serializable
+data class UpdateMpesaConfigRequest(
+    val businessNo: String,
+    val accountNo: String,
+    val instructions: String? = null
+)
+
+@Serializable
+data class UpdatePaypalConfigRequest(
+    val email: String,
+    val instructions: String? = null
+)
+
+@Serializable
+data class BankToggle(val id: String, val enabled: Boolean)
+
+@Serializable
+data class BulkUpdateBanksRequest(val banks: List<BankToggle>)
+
+@Serializable
+data class PatchDocumentRequest(
+    val docType: String? = null,
+    val notes: String? = null
+)
+
+@Serializable
+data class CreateAlertRequest(
+    val targetType: String,
+    val buildingId: String? = null,
+    val tenantIds: List<String>? = null,
+    val rentDueFilter: String? = null,
+    val channels: List<String>,
+    val subject: String,
+    val message: String
+)
+
+@Serializable
+data class ResolveLeaseExtensionRequest(
+    val status: String,
+    val agentNotes: String? = null
+)
+
+@Serializable
+data class CreateLeaseExtensionRequest(
+    val leaseId: String,
+    val durationMonths: Int? = null,
+    val customEndDate: String? = null,
+    val notes: String? = null
+)
+
+@Serializable
+data class ContactInquiryRequest(
+    val fullName: String,
+    val workEmail: String,
+    val company: String? = null,
+    val units: Int? = null,
+    val message: String
+)
 
 @Serializable
 data class BuildingSummaryData(

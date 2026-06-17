@@ -85,9 +85,9 @@ export default function Alerts() {
     e.preventDefault()
     mutation.mutate(
       {
-        target: targetLabel(),
-        building: target === 'building' ? building : undefined,
-        tenants: target === 'tenant' ? selectedTenants : undefined,
+        targetType: target,
+        buildingId: target === 'building' ? building : undefined,
+        tenantIds: target === 'tenant' ? selectedTenants : undefined,
         rentDueFilter: target === 'rent_due' ? rentDueFilter : undefined,
         channels,
         subject,
@@ -341,18 +341,18 @@ export default function Alerts() {
                 <tbody>
                   {history.map((a) => (
                     <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="px-5 py-3 text-gray-400 text-xs whitespace-nowrap">{a.sentAt}</td>
+                      <td className="px-5 py-3 text-gray-400 text-xs whitespace-nowrap">{a.sentAt.slice(0, 10)}</td>
                       <td className="px-5 py-3 font-medium text-gray-900 max-w-[180px]">
                         <p className="truncate">{a.subject}</p>
                         <p className="text-xs text-gray-400 font-normal truncate mt-0.5">{a.message}</p>
                       </td>
                       <td className="px-5 py-3 text-gray-500 max-w-[140px]">
-                        <p className="truncate text-xs">{a.target}</p>
+                        <p className="truncate text-xs">{a.targetLabel}</p>
                       </td>
-                      <td className="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">{a.channels}</td>
-                      <td className="px-5 py-3 text-right text-gray-900 font-medium">{a.recipients}</td>
+                      <td className="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">{a.channels.join(', ')}</td>
+                      <td className="px-5 py-3 text-right text-gray-900 font-medium">{a.recipientCount}</td>
                       <td className="px-5 py-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[a.status]}`}>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[a.status] ?? 'bg-gray-100 text-gray-500'}`}>
                           {a.status}
                         </span>
                       </td>

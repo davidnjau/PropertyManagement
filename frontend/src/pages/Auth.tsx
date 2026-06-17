@@ -30,7 +30,7 @@ export default function Auth() {
       }
       localStorage.setItem('ba_token', result.token)
       localStorage.setItem('ba_user', JSON.stringify(result.user))
-      navigate(result.user.role === 'tenant' ? '/tenant' : '/dashboard')
+      navigate(result.user.role === 'TENANT' ? '/tenant' : '/dashboard')
     } catch {
       setError('Invalid credentials. Please try again.')
     } finally {
