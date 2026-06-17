@@ -1,0 +1,37 @@
+name: iosApp
+options:
+  bundleIdPrefix: com.buildagent
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: iosApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.buildagent.ios
+        INFOPLIST_FILE: iosApp/Info.plist
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(SRCROOT)/../build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - composeApp
+    preBuildScripts:
+      - name: Build KMP Framework
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+        basedOnDependencyAnalysis: false
+        showEnvVars: true
