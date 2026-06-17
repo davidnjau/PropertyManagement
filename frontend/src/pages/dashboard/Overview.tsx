@@ -11,8 +11,8 @@ export default function Overview() {
 
   const statCards = [
     { label: 'Buildings', value: stats?.buildings ?? 0, icon: <Building size={16} className="text-gray-400" /> },
-    { label: 'Tenants', value: stats?.tenants ?? 0, icon: <Users size={16} className="text-gray-400" /> },
-    { label: 'Payments', value: stats?.payments ?? 0, icon: <CreditCard size={16} className="text-gray-400" /> },
+    { label: 'Total Units', value: stats?.units?.total ?? 0, icon: <Users size={16} className="text-gray-400" /> },
+    { label: 'Overdue Payments', value: stats?.overduePayments ?? 0, icon: <CreditCard size={16} className="text-gray-400" /> },
     { label: 'Open Maintenance', value: stats?.openMaintenance ?? 0, icon: <Wrench size={16} className="text-gray-400" /> },
   ]
 

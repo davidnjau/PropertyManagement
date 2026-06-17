@@ -33,7 +33,7 @@ export default function TenantOverview() {
         </div>
         <div className="flex flex-col items-end gap-3">
           <span className="text-xs font-semibold bg-amber-400 text-gray-900 px-2.5 py-1 rounded-full">
-            {data?.rentStatus ?? 'Upcoming'}
+            {data?.leaseStatus ?? 'Upcoming'}
           </span>
           <Link
             to="/tenant/pay-rent"
@@ -85,7 +85,6 @@ export default function TenantOverview() {
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
               <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
@@ -108,10 +107,9 @@ export default function TenantOverview() {
               </tr>
             ) : (
               (data?.recentPayments ?? []).map((p) => (
-                <tr key={p.month} className="border-b border-gray-50">
-                  <td className="px-5 py-3 text-gray-900 font-medium">{p.month}</td>
+                <tr key={p.id} className="border-b border-gray-50">
+                  <td className="px-5 py-3 text-gray-900 font-medium">{p.periodFrom} – {p.periodTo}</td>
                   <td className="px-5 py-3 text-right text-gray-900">KES {p.amount.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-gray-500">{p.method}</td>
                   <td className="px-5 py-3">
                     <span className="text-xs font-medium bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
                       {p.status}

@@ -107,17 +107,14 @@ export default function TenantDocuments() {
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText size={16} className="text-gray-400 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{d.name}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{d.fileName}</p>
                     <p className="text-xs text-gray-400">
-                      {d.type} · {d.size} · {d.date}
-                      {d.uploaded && (
-                        <span className="ml-2 text-green-600 font-medium">Uploaded by you</span>
-                      )}
+                      {d.docType} · {formatBytes(d.fileSize)} · {d.uploadedAt}
                     </p>
                   </div>
                 </div>
                 <a
-                  href={d.url ?? '#'}
+                  href={d.fileUrl ?? '#'}
                   className="text-gray-400 hover:text-gray-700 transition-colors p-1 shrink-0 ml-3"
                 >
                   <Download size={15} />

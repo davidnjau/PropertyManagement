@@ -3,7 +3,7 @@ import { CheckCircle } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchTenantMaintenance, createTenantMaintenanceRequest } from '../../services/tenantPortal'
 
-const emptyForm = { title: '', description: '', priority: 'Medium' }
+const emptyForm = { title: '', description: '', priority: 'MEDIUM', category: 'GENERAL', unitId: '' }
 
 const statusColors: Record<string, string> = {
   Open: 'bg-amber-50 text-amber-700',
@@ -71,12 +71,23 @@ export default function TenantMaintenance() {
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 resize-none placeholder:text-gray-300" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+            <select name="category" value={form.category} onChange={handleChange}
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
+              <option value="GENERAL">General</option>
+              <option value="PLUMBING">Plumbing</option>
+              <option value="ELECTRICAL">Electrical</option>
+              <option value="STRUCTURAL">Structural</option>
+              <option value="APPLIANCE">Appliance</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
             <select name="priority" value={form.priority} onChange={handleChange}
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white">
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
             </select>
           </div>
           <button type="submit" disabled={mutation.isPending}
@@ -110,7 +121,7 @@ export default function TenantMaintenance() {
                 <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-5 py-3 font-medium text-gray-900">{r.title}</td>
                   <td className="px-5 py-3 text-gray-500">{r.priority}</td>
-                  <td className="px-5 py-3 text-gray-500">{r.date}</td>
+                  <td className="px-5 py-3 text-gray-500">{r.createdAt}</td>
                   <td className="px-5 py-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[r.status] ?? ''}`}>
                       {r.status}

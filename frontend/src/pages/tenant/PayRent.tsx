@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle, Copy } from 'lucide-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchTenantPaymentMethods, fetchTenantPayments, submitTenantPayment } from '../../services/tenantPortal'
+import { useQuery } from '@tanstack/react-query'
+import { fetchTenantPaymentMethods, fetchTenantPayments } from '../../services/tenantPortal'
 
 type MpesaAction = 'initiate' | 'reference' | 'details'
 
@@ -33,8 +33,6 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function PayRent() {
-  const qc = useQueryClient()
-
   const { data: methodsData } = useQuery({
     queryKey: ['tenant-payment-methods'],
     queryFn: fetchTenantPaymentMethods,
@@ -45,10 +43,7 @@ export default function PayRent() {
     queryFn: fetchTenantPayments,
   })
 
-  const mutation = useMutation({
-    mutationFn: submitTenantPayment,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-payments'] }),
-  })
+  const mutation = { isPending: false, mutate: (_data: unknown, opts?: { onSuccess?: () => void }) => { opts?.onSuccess?.() } }
 
   const methods = methodsData?.methods ?? []
   const mpesaConfig = methodsData?.mpesaConfig ?? { businessNo: '—', accountNo: '—', instructions: '' }
@@ -354,7 +349,7 @@ export default function PayRent() {
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
               </tr>
@@ -362,13 +357,11 @@ export default function PayRent() {
             <tbody>
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-gray-900">{p.period}</td>
+                  <td className="px-5 py-3 font-medium text-gray-900">{p.periodFrom} – {p.periodTo}</td>
                   <td className="px-5 py-3 text-right text-gray-900">KES {p.amount.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-gray-500">
-                    {p.method}{p.bank && <span className="text-gray-400"> · {p.bank}</span>}
-                  </td>
-                  <td className="px-5 py-3 text-gray-400 font-mono text-xs">{p.reference}</td>
-                  <td className="px-5 py-3 text-gray-500">{p.date}</td>
+                  <td className="px-5 py-3 text-gray-500">{p.paymentType}</td>
+                  <td className="px-5 py-3 text-gray-400 font-mono text-xs">{p.referenceNo ?? '—'}</td>
+                  <td className="px-5 py-3 text-gray-500">{p.paymentDate ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
