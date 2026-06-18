@@ -3,7 +3,10 @@ package com.buildagent.backend.services
 import com.buildagent.backend.TestDatabase
 import com.buildagent.backend.TestFixtures
 import com.buildagent.backend.db.tables.UsersTable
-import com.buildagent.shared.models.CreateTenantRequest
+import com.buildagent.backend.db.tables.LeasesTable
+import com.buildagent.backend.db.tables.UserCredentialsTable
+import com.buildagent.shared.models.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -121,5 +124,147 @@ class TenantServiceTest {
 
         val (tenants, _) = service.listTenants(agencyId)
         assertTrue(tenants.isEmpty())
+    }
+
+    // ── createTenantWithLease ─────────────────────────────────────────────────
+
+    private fun makeWithLeaseRequest(unitId: String) = CreateTenantWithLeaseRequest(
+        fullName = "Dana Tenant",
+        email = "dana@tenant.com",
+        phone = "0400000099",
+        unitId = unitId,
+        startDate = "2025-01-01",
+        endDate = "2026-01-01",
+        rentAmount = 1800.0,
+        rentFrequency = RentFrequency.MONTHLY,
+        bondAmount = 3600.0,
+        paymentDay = 5
+    )
+
+    @Test
+    fun `createTenantWithLease creates both tenant and lease records`() = runBlocking {
+        val agencyId = TestFixtures.createAgency()
+        val buildingId = TestFixtures.createBuilding(agencyId)
+        val unitId = TestFixtures.createUnit(buildingId)
+
+        val result = service.createTenantWithLease(agencyId, makeWithLeaseRequest(unitId))
+
+        assertEquals("Dana Tenant", result.tenant.fullName)
+        assertEquals("dana@tenant.com", result.tenant.email)
+        assertNotNull(result.lease.id)
+        assertEquals(result.tenant.id, result.lease.tenantId)
+        assertEquals(unitId, result.lease.unitId)
+        assertEquals(LeaseStatus.ACTIVE, result.lease.status)
+    }
+
+    @Test
+    fun `createTenantWithLease marks unit as OCCUPIED`() = runBlocking {
+        val agencyId = TestFixtures.createAgency()
+        val buildingId = TestFixtures.createBuilding(agencyId)
+        val unitId = TestFixtures.createUnit(buildingId)
+
+        service.createTenantWithLease(agencyId, makeWithLeaseRequest(unitId))
+
+        val unitStatus = transaction {
+            com.buildagent.backend.db.tables.UnitsTable.selectAll()
+                .where { com.buildagent.backend.db.tables.UnitsTable.id eq java.util.UUID.fromString(unitId) }
+                .first()[com.buildagent.backend.db.tables.UnitsTable.status]
+        }
+        assertEquals(UnitStatus.OCCUPIED, unitStatus)
+    }
+
+    @Test
+    fun `createTenantWithLease provisions new TENANT user in background`() = runBlocking {
+        val agencyId = TestFixtures.createAgency()
+        val buildingId = TestFixtures.createBuilding(agencyId)
+        val unitId = TestFixtures.createUnit(buildingId)
+
+        service.createTenantWithLease(agencyId, makeWithLeaseRequest(unitId))
+        delay(200) // allow background coroutine to complete
+
+        val user = transaction {
+            UsersTable.selectAll()
+                .where { UsersTable.email eq "dana@tenant.com" }
+                .firstOrNull()
+        }
+        assertNotNull(user)
+        assertEquals(UserRole.TENANT, user[UsersTable.role])
+
+        val creds = transaction {
+            UserCredentialsTable.selectAll()
+                .where { UserCredentialsTable.userId eq user[UsersTable.id] }
+                .firstOrNull()
+        }
+        assertNotNull(creds, "Credentials row should be created with OTP hash")
+    }
+
+    @Test
+    fun `createTenantWithLease does not create duplicate user for existing TENANT`() = runBlocking {
+        val agencyId = TestFixtures.createAgency()
+        val buildingId = TestFixtures.createBuilding(agencyId)
+        val unitId1 = TestFixtures.createUnit(buildingId, unitNumber = "1A")
+        val unitId2 = TestFixtures.createUnit(buildingId, unitNumber = "1B")
+
+        service.createTenantWithLease(agencyId, makeWithLeaseRequest(unitId1))
+        delay(200)
+
+        // Second call with same email, different unit
+        service.createTenantWithLease(
+            agencyId,
+            makeWithLeaseRequest(unitId2).copy(email = "dana@tenant.com", fullName = "Dana Again")
+        )
+        delay(200)
+
+        val userCount = transaction {
+            UsersTable.selectAll()
+                .where { UsersTable.email eq "dana@tenant.com" }
+                .count()
+        }
+        assertEquals(1L, userCount, "Should not create a second user record for the same email")
+    }
+
+    @Test
+    fun `createTenantWithLease throws when unit does not belong to agency`() = runBlocking {
+        val agencyId1 = TestFixtures.createAgency(name = "A1", email = "a1@test.com")
+        val agencyId2 = TestFixtures.createAgency(name = "A2", email = "a2@test.com")
+        val buildingId = TestFixtures.createBuilding(agencyId2)
+        val unitId = TestFixtures.createUnit(buildingId)
+
+        try {
+            service.createTenantWithLease(agencyId1, makeWithLeaseRequest(unitId))
+            assert(false) { "Expected exception" }
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message!!.contains("Unit not found"))
+        }
+    }
+
+    @Test
+    fun `createTenantWithLease does not create user for existing AGENT`() = runBlocking {
+        val agencyId = TestFixtures.createAgency()
+        val buildingId = TestFixtures.createBuilding(agencyId)
+        val unitId = TestFixtures.createUnit(buildingId)
+        // Pre-create a user with AGENT role at the same email
+        TestFixtures.createUser(agencyId, email = "agent.tenant@test.com", role = UserRole.AGENT)
+
+        service.createTenantWithLease(
+            agencyId,
+            makeWithLeaseRequest(unitId).copy(email = "agent.tenant@test.com")
+        )
+        delay(200)
+
+        // Role should remain AGENT — no change
+        val user = transaction {
+            UsersTable.selectAll()
+                .where { UsersTable.email eq "agent.tenant@test.com" }
+                .single()
+        }
+        assertEquals(UserRole.AGENT, user[UsersTable.role])
+
+        val userCount = transaction {
+            UsersTable.selectAll()
+                .where { UsersTable.email eq "agent.tenant@test.com" }
+                .count()
+        }
+        assertEquals(1L, userCount, "Should not create a second user for an existing agent")
     }
 }
