@@ -8,6 +8,7 @@ enum class UserRole { ADMIN, AGENT, CLIENT, TENANT, VENDOR }
 @Serializable
 enum class UserType { AGENCY, AGENT, CLIENT, TENANT, VENDOR }
 
+@Deprecated("Use toRoles()")
 fun UserType.toRole(): UserRole = when (this) {
     UserType.AGENCY -> UserRole.ADMIN
     UserType.AGENT  -> UserRole.AGENT
@@ -16,12 +17,29 @@ fun UserType.toRole(): UserRole = when (this) {
     UserType.VENDOR -> UserRole.VENDOR
 }
 
+@Deprecated("Use List<UserRole>.primaryUserType()")
 fun UserRole.toUserType(): UserType = when (this) {
     UserRole.ADMIN  -> UserType.AGENCY
     UserRole.AGENT  -> UserType.AGENT
     UserRole.CLIENT -> UserType.CLIENT
     UserRole.TENANT -> UserType.TENANT
     UserRole.VENDOR -> UserType.VENDOR
+}
+
+fun UserType.toRoles(): List<UserRole> = listOf(when (this) {
+    UserType.AGENCY -> UserRole.ADMIN
+    UserType.AGENT  -> UserRole.AGENT
+    UserType.CLIENT -> UserRole.CLIENT
+    UserType.TENANT -> UserRole.TENANT
+    UserType.VENDOR -> UserRole.VENDOR
+})
+
+fun List<UserRole>.primaryUserType(): UserType = when {
+    UserRole.ADMIN  in this -> UserType.AGENCY
+    UserRole.AGENT  in this -> UserType.AGENT
+    UserRole.CLIENT in this -> UserType.CLIENT
+    UserRole.TENANT in this -> UserType.TENANT
+    else                    -> UserType.VENDOR
 }
 
 @Serializable

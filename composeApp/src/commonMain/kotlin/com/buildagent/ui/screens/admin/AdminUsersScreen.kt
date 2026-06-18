@@ -73,14 +73,14 @@ fun AdminUsersScreen() {
                             }
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (user.role == "ADMIN") Brand100 else Gray100
+                                color = if ("ADMIN" in user.roles) Brand100 else Gray100
                             ) {
                                 Text(
-                                    user.role,
+                                    user.roles.joinToString(", "),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (user.role == "ADMIN") Brand600 else Gray700
+                                    color = if ("ADMIN" in user.roles) Brand600 else Gray700
                                 )
                             }
                         }

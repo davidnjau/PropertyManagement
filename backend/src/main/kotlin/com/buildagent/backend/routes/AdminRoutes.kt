@@ -16,14 +16,14 @@ fun Route.adminRoutes(service: AdminService) {
         route("/admin/users") {
             get {
                 val principal = call.principal<AgentPrincipal>()!!
-                require(principal.role == "ADMIN") { "Forbidden: requires ADMIN role" }
+                require("ADMIN" in principal.roles) { "Forbidden: requires ADMIN role" }
                 val users = service.listUsers(principal.agencyId)
                 call.respond(ApiResponse(users))
             }
 
             post {
                 val principal = call.principal<AgentPrincipal>()!!
-                require(principal.role == "ADMIN") { "Forbidden: requires ADMIN role" }
+                require("ADMIN" in principal.roles) { "Forbidden: requires ADMIN role" }
                 val req = call.receive<CreateUserRequest>()
                 val user = service.createUser(principal.agencyId, req)
                 call.respond(HttpStatusCode.Created, ApiResponse(user))

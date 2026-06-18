@@ -41,7 +41,7 @@ val adminNavItems = listOf(
 fun AppDrawer(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    role: String = "",
+    roles: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -65,7 +65,7 @@ fun AppDrawer(
             DrawerNavRow(item, selectedIndex, onSelect)
         }
 
-        if (role == "ADMIN" || role == "AGENT") {
+        if ("ADMIN" in roles || "AGENT" in roles) {
             Spacer(Modifier.height(16.dp))
             Divider(color = Color(0xFF374151), thickness = 1.dp)
             Spacer(Modifier.height(8.dp))

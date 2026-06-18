@@ -56,7 +56,7 @@ object SeedService {
                 it[auth0Sub]  = "local|${UUID.randomUUID()}"
                 it[email]     = SUPER_ADMIN_EMAIL
                 it[fullName]  = SUPER_ADMIN_NAME
-                it[role]      = UserRole.ADMIN
+                it[roles]     = listOf(UserRole.ADMIN.name)
                 it[isActive]  = true
                 it[createdAt] = now
                 it[updatedAt] = now

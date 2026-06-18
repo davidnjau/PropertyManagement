@@ -6,8 +6,9 @@ import com.buildagent.backend.db.tables.UserCredentialsTable
 import com.buildagent.backend.db.tables.UsersTable
 import com.buildagent.shared.models.AdminUserResponse
 import com.buildagent.shared.models.CreateUserRequest
-import com.buildagent.shared.models.toRole
-import com.buildagent.shared.models.toUserType
+import com.buildagent.shared.models.UserRole
+import com.buildagent.shared.models.primaryUserType
+import com.buildagent.shared.models.toRoles
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.and
@@ -23,14 +24,14 @@ class AdminService {
             .where { UsersTable.agencyId eq UUID.fromString(agencyId) and (UsersTable.isActive eq true) }
             .orderBy(UsersTable.createdAt)
             .map { row ->
-                val role = row[UsersTable.role]
+                val roles = row[UsersTable.roles]
                 AdminUserResponse(
                     id = row[UsersTable.id].value.toString(),
                     agencyId = agencyId,
                     email = row[UsersTable.email],
                     fullName = row[UsersTable.fullName],
-                    role = role.name,
-                    userType = role.toUserType().name,
+                    roles = roles,
+                    userType = roles.map { UserRole.valueOf(it) }.primaryUserType().name,
                     phone = row[UsersTable.phone],
                     isActive = row[UsersTable.isActive],
                     createdAt = row[UsersTable.createdAt].toString()
@@ -47,14 +48,15 @@ class AdminService {
         val now: Instant = Clock.System.now()
         val salt = PasswordHasher.generateSalt()
         val hash = PasswordHasher.hash(req.password, salt)
-        val role = req.userType.toRole()
+        val roles = req.userType.toRoles()
+        val roleNames = roles.map { it.name }
 
         val newUserId = UsersTable.insertAndGetId {
             it[UsersTable.agencyId] = UUID.fromString(agencyId)
             it[UsersTable.auth0Sub] = "local|${UUID.randomUUID()}"
             it[UsersTable.email] = req.email
             it[UsersTable.fullName] = req.fullName
-            it[UsersTable.role] = role
+            it[UsersTable.roles] = roleNames
             it[UsersTable.phone] = req.phone
             it[UsersTable.createdAt] = now
             it[UsersTable.updatedAt] = now
@@ -71,7 +73,7 @@ class AdminService {
             agencyId = agencyId,
             email = req.email,
             fullName = req.fullName,
-            role = role.name,
+            roles = roleNames,
             userType = req.userType.name,
             phone = req.phone,
             isActive = true,

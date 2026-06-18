@@ -36,7 +36,7 @@ class MainScreen : Screen {
     @Composable
     override fun Content() {
         val authState = LocalAuthState.current
-        val role = (authState.value as? AuthState.Authenticated)?.role ?: "AGENT"
+        val roles = (authState.value as? AuthState.Authenticated)?.roles ?: listOf("AGENT")
         var selectedIndex by remember { mutableIntStateOf(0) }
         var sidebarVisible by remember { mutableStateOf(true) }
 
@@ -49,7 +49,7 @@ class MainScreen : Screen {
                 AppDrawer(
                     selectedIndex = selectedIndex,
                     onSelect = { selectedIndex = it },
-                    role = role
+                    roles = roles
                 )
             }
 

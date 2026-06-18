@@ -91,10 +91,10 @@ class LoginScreen : Screen {
                                     authState.value = AuthState.Authenticated(
                                         token = auth.token,
                                         agencyId = user.agencyId,
-                                        role = user.role,
+                                        roles = user.roles,
                                         userName = user.fullName
                                     )
-                                    if (user.role == "TENANT") {
+                                    if ("TENANT" in user.roles && "ADMIN" !in user.roles && "AGENT" !in user.roles) {
                                         navigator.replace(TenantMainScreen())
                                     } else {
                                         navigator.replace(MainScreen())

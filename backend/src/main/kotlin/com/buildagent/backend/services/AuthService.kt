@@ -10,9 +10,10 @@ import com.buildagent.shared.models.AuthResponse
 import com.buildagent.shared.models.AuthUser
 import com.buildagent.shared.models.LoginRequest
 import com.buildagent.shared.models.RegisterRequest
+import com.buildagent.shared.models.UserRole
 import com.buildagent.shared.models.UserType
-import com.buildagent.shared.models.toRole
-import com.buildagent.shared.models.toUserType
+import com.buildagent.shared.models.primaryUserType
+import com.buildagent.shared.models.toRoles
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.and
@@ -42,7 +43,7 @@ class AuthService(private val jwtService: LocalJwtService) {
         val now: Instant = Clock.System.now()
         val salt = PasswordHasher.generateSalt()
         val hash = PasswordHasher.hash(req.password, salt)
-        val role = req.userType.toRole()
+        val roles = req.userType.toRoles()
 
         val resolvedAgencyId: UUID = when (req.userType) {
             UserType.AGENCY -> {
@@ -61,7 +62,7 @@ class AuthService(private val jwtService: LocalJwtService) {
             it[UsersTable.auth0Sub] = "local|${UUID.randomUUID()}"
             it[UsersTable.email] = req.email
             it[UsersTable.fullName] = req.fullName
-            it[UsersTable.role] = role
+            it[UsersTable.roles] = roles.map { r -> r.name }
             it[UsersTable.phone] = req.phone
             it[UsersTable.createdAt] = now
             it[UsersTable.updatedAt] = now
@@ -73,11 +74,12 @@ class AuthService(private val jwtService: LocalJwtService) {
             it[UserCredentialsTable.salt] = Base64.getEncoder().encodeToString(salt)
         }
 
+        val roleNames = roles.map { it.name }
         val token = jwtService.issue(
             userId = newUserId.value.toString(),
             agencyId = resolvedAgencyId.toString(),
             email = req.email,
-            role = role.name
+            roles = roleNames
         )
 
         AuthResponse(
@@ -87,7 +89,7 @@ class AuthService(private val jwtService: LocalJwtService) {
                 agencyId = resolvedAgencyId.toString(),
                 email = req.email,
                 fullName = req.fullName,
-                role = role.name,
+                roles = roleNames,
                 userType = req.userType.name
             )
         )
@@ -113,12 +115,12 @@ class AuthService(private val jwtService: LocalJwtService) {
         )
         require(valid) { "Invalid credentials" }
 
-        val role = userRow[UsersTable.role]
+        val roles = userRow[UsersTable.roles]
         val token = jwtService.issue(
             userId = foundUserId.value.toString(),
             agencyId = userRow[UsersTable.agencyId].value.toString(),
             email = userRow[UsersTable.email],
-            role = role.name
+            roles = roles
         )
 
         AuthResponse(
@@ -128,8 +130,8 @@ class AuthService(private val jwtService: LocalJwtService) {
                 agencyId = userRow[UsersTable.agencyId].value.toString(),
                 email = userRow[UsersTable.email],
                 fullName = userRow[UsersTable.fullName],
-                role = role.name,
-                userType = role.toUserType().name
+                roles = roles,
+                userType = roles.map { UserRole.valueOf(it) }.primaryUserType().name
             )
         )
     }
@@ -140,14 +142,14 @@ class AuthService(private val jwtService: LocalJwtService) {
             .firstOrNull()
             ?: throw NoSuchElementException("User not found")
 
-        val role = userRow[UsersTable.role]
+        val roles = userRow[UsersTable.roles]
         AuthUser(
             id = userRow[UsersTable.id].value.toString(),
             agencyId = userRow[UsersTable.agencyId].value.toString(),
             email = userRow[UsersTable.email],
             fullName = userRow[UsersTable.fullName],
-            role = role.name,
-            userType = role.toUserType().name
+            roles = roles,
+            userType = roles.map { UserRole.valueOf(it) }.primaryUserType().name
         )
     }
 }

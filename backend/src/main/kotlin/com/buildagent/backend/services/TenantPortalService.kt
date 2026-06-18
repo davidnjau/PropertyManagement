@@ -181,8 +181,8 @@ class TenantPortalService {
         val currentEnd = leaseRow[LeasesTable.endDate]
             ?: error("Lease has no end date; cannot submit extension request")
         val proposedEnd = when {
-            req.customEndDate != null -> LocalDate.parse(req.customEndDate)
-            req.durationMonths != null -> currentEnd.plus(req.durationMonths, DateTimeUnit.MONTH)
+            req.customEndDate != null -> LocalDate.parse(req.customEndDate!!)
+            req.durationMonths != null -> currentEnd.plus(req.durationMonths!!, DateTimeUnit.MONTH)
             else -> error("Provide either durationMonths or customEndDate")
         }
 

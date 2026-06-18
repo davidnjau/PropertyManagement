@@ -22,7 +22,7 @@ data class User(
     val auth0Sub: String,
     val email: String,
     val fullName: String,
-    val role: UserRole,
+    val roles: List<UserRole>,
     val phone: String? = null,
     val isActive: Boolean = true,
     val createdAt: String,

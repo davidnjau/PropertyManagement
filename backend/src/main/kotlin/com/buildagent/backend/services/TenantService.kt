@@ -64,19 +64,20 @@ class TenantService(private val notificationService: NotificationService = Notif
         }
 
         // Create login credentials so the tenant can log in via the tenant portal
-        if (!request.password.isNullOrBlank()) {
+        val password = request.password
+        if (!password.isNullOrBlank()) {
             val existingUser = UsersTable.selectAll()
                 .where { UsersTable.email eq request.email }
                 .firstOrNull()
             if (existingUser == null) {
                 val salt = PasswordHasher.generateSalt()
-                val hash = PasswordHasher.hash(request.password, salt)
+                val hash = PasswordHasher.hash(password, salt)
                 val userId = UsersTable.insertAndGetId {
                     it[UsersTable.agencyId] = agencyUUID
                     it[UsersTable.auth0Sub] = "local|${UUID.randomUUID()}"
                     it[UsersTable.email] = request.email
                     it[UsersTable.fullName] = request.fullName
-                    it[UsersTable.role] = UserRole.TENANT
+                    it[UsersTable.roles] = listOf(UserRole.TENANT.name)
                     it[UsersTable.phone] = request.phone
                     it[UsersTable.createdAt] = now
                     it[UsersTable.updatedAt] = now
@@ -277,7 +278,7 @@ class TenantService(private val notificationService: NotificationService = Notif
                         it[UsersTable.auth0Sub] = "local|${UUID.randomUUID()}"
                         it[UsersTable.email] = tenant.email
                         it[UsersTable.fullName] = tenant.fullName
-                        it[UsersTable.role] = UserRole.TENANT
+                        it[UsersTable.roles] = listOf(UserRole.TENANT.name)
                         it[UsersTable.phone] = tenant.phone
                         it[UsersTable.createdAt] = now
                         it[UsersTable.updatedAt] = now
@@ -290,7 +291,7 @@ class TenantService(private val notificationService: NotificationService = Notif
                     notificationService.sendOtp(tenant.phone, tenant.email, otp, tenant.fullName)
                 }
 
-                existing[UsersTable.role] == UserRole.TENANT -> {
+                existing[UsersTable.roles].all { it == UserRole.TENANT.name } -> {
                     // Already a tenant on another lease — notify of this new lease
                     notificationService.sendLeaseCreatedNotification(
                         tenant.phone, tenant.email, tenant.fullName, leaseId

@@ -2,8 +2,10 @@ package com.buildagent.backend.db.tables
 
 import com.buildagent.shared.models.*
 import kotlinx.datetime.Instant
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.json.json
 import org.jetbrains.exposed.sql.kotlin.datetime.date
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 import org.jetbrains.exposed.sql.ReferenceOption
@@ -24,7 +26,7 @@ object UsersTable : UUIDTable("users") {
     val auth0Sub = varchar("auth0_sub", 255).uniqueIndex()
     val email = varchar("email", 255)
     val fullName = varchar("full_name", 255)
-    val role = enumerationByName("role", 20, UserRole::class)
+    val roles = json<List<String>>("roles", Json.Default)
     val phone = varchar("phone", 50).nullable()
     val isActive = bool("is_active").default(true)
     val createdAt: Column<Instant> = timestamp("created_at")

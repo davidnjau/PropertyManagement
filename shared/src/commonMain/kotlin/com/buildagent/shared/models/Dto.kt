@@ -27,7 +27,7 @@ data class AuthUser(
     val agencyId: String,
     val email: String,
     val fullName: String,
-    val role: String,
+    val roles: List<String>,
     val userType: String
 )
 
@@ -48,7 +48,7 @@ data class AdminUserResponse(
     val agencyId: String,
     val email: String,
     val fullName: String,
-    val role: String,
+    val roles: List<String>,
     val userType: String,
     val phone: String? = null,
     val isActive: Boolean = true,

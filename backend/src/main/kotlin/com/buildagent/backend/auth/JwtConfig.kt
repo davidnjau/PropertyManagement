@@ -14,7 +14,7 @@ data class AgentPrincipal(
     val userId: String,
     val agencyId: String,
     val email: String,
-    val role: String
+    val roles: List<String>
 ) : Principal
 
 private val logger = LoggerFactory.getLogger("JwtConfig")
@@ -40,14 +40,15 @@ fun Application.configureAuthentication(localJwtService: LocalJwtService) {
             validate { credential ->
                 val agencyId = credential.payload.getClaim("${namespace}agency_id").asString()
                 val userId = credential.payload.getClaim("${namespace}user_id").asString()
-                val role = credential.payload.getClaim("${namespace}role").asString()
+                val roles = credential.payload.getClaim("${namespace}roles").asList(String::class.java)
+                    ?: listOf(credential.payload.getClaim("${namespace}role").asString() ?: "")
                 val email = credential.payload.getClaim("email").asString() ?: ""
 
-                if (agencyId.isNullOrBlank() || userId.isNullOrBlank() || role.isNullOrBlank()) {
+                if (agencyId.isNullOrBlank() || userId.isNullOrBlank() || roles.isEmpty()) {
                     logger.warn("JWT missing custom claims for subject=${credential.payload.subject}")
                     null
                 } else {
-                    AgentPrincipal(userId = userId, agencyId = agencyId, email = email, role = role)
+                    AgentPrincipal(userId = userId, agencyId = agencyId, email = email, roles = roles)
                 }
             }
             challenge { _, _ ->
@@ -66,13 +67,14 @@ fun Application.configureAuthentication(localJwtService: LocalJwtService) {
                 val userId = credential.payload.subject
                 val agencyId = credential.payload.getClaim("agency_id").asString()
                 val email = credential.payload.getClaim("email").asString() ?: ""
-                val role = credential.payload.getClaim("role").asString()
+                val roles = credential.payload.getClaim("roles").asList(String::class.java)
+                    ?: listOf(credential.payload.getClaim("role").asString() ?: "")
 
-                if (userId.isNullOrBlank() || agencyId.isNullOrBlank() || role.isNullOrBlank()) {
+                if (userId.isNullOrBlank() || agencyId.isNullOrBlank() || roles.isEmpty()) {
                     logger.warn("Local JWT missing claims for subject=$userId")
                     null
                 } else {
-                    AgentPrincipal(userId = userId, agencyId = agencyId, email = email, role = role)
+                    AgentPrincipal(userId = userId, agencyId = agencyId, email = email, roles = roles)
                 }
             }
             challenge { _, _ ->

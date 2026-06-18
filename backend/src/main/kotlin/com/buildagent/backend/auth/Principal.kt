@@ -7,7 +7,7 @@ data class UserPrincipal(
     val userId: String,
     val agencyId: String,
     val email: String,
-    val role: String
+    val roles: List<String>
 )
 
 fun ApplicationCall.userPrincipal(): UserPrincipal {
@@ -16,10 +16,10 @@ fun ApplicationCall.userPrincipal(): UserPrincipal {
         userId = agent.userId,
         agencyId = agent.agencyId,
         email = agent.email,
-        role = agent.role
+        roles = agent.roles
     )
 }
 
-fun UserPrincipal.requireRole(vararg roles: String) {
-    require(role in roles) { "Forbidden: requires ${roles.joinToString()}, got $role" }
+fun UserPrincipal.requireRole(vararg allowed: String) {
+    require(roles.any { it in allowed }) { "Forbidden: requires ${allowed.joinToString()}, got $roles" }
 }

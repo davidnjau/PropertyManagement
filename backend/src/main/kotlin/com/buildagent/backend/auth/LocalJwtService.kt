@@ -9,13 +9,13 @@ import java.util.Date
 class LocalJwtService(secret: String, private val issuer: String = "buildagent-local") {
     private val algorithm = Algorithm.HMAC256(secret)
 
-    fun issue(userId: String, agencyId: String, email: String, role: String): String =
+    fun issue(userId: String, agencyId: String, email: String, roles: List<String>): String =
         JWT.create()
             .withIssuer(issuer)
             .withSubject(userId)
             .withClaim("agency_id", agencyId)
             .withClaim("email", email)
-            .withClaim("role", role)
+            .withClaim("roles", roles)
             .withExpiresAt(Date(Clock.System.now().toEpochMilliseconds() + 86_400_000L * 30))
             .sign(algorithm)
 
