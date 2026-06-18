@@ -3,17 +3,19 @@ package com.buildagent.ui.screens.tenancy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
-import com.buildagent.shared.models.CreateTenantRequest
+import com.buildagent.shared.models.CreateTenantWithLeaseRequest
+import com.buildagent.shared.models.RentFrequency
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
 
@@ -23,7 +25,6 @@ fun TenantsScreen() {
     val tenants by vm.tenants.collectAsState()
     val loading by vm.loading.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
-    var pendingTenantId by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Row(
@@ -67,32 +68,13 @@ fun TenantsScreen() {
     }
 
     if (showDialog) {
-        CreateTenantDialog(
+        CreateTenantAndLeaseDialog(
             onDismiss = { showDialog = false },
             onSave = { request ->
-                vm.createTenant(
+                vm.createTenantWithLease(
                     request,
-                    onSuccess = { tenantId ->
-                        showDialog = false
-                        pendingTenantId = tenantId
-                    },
+                    onSuccess = { showDialog = false },
                     onError = { }
-                )
-            }
-        )
-    }
-
-    pendingTenantId?.let { tenantId ->
-        val tenantList = tenants.map { it.id to it.fullName }
-        CreateLeaseDialog(
-            tenants = tenantList,
-            preselectedTenantId = tenantId,
-            onDismiss = { pendingTenantId = null },
-            onSave = { request ->
-                vm.createLease(
-                    request,
-                    onSuccess = { pendingTenantId = null },
-                    onError = { pendingTenantId = null }
                 )
             }
         )
@@ -100,22 +82,35 @@ fun TenantsScreen() {
 }
 
 @Composable
-fun CreateTenantDialog(
+fun CreateTenantAndLeaseDialog(
     onDismiss: () -> Unit,
-    onSave: (CreateTenantRequest) -> Unit
+    onSave: (CreateTenantWithLeaseRequest) -> Unit
 ) {
+    // Tenant fields
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    // Lease fields
+    var unitId by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf("") }
+    var endDate by remember { mutableStateOf("") }
+    var rentAmount by remember { mutableStateOf("") }
+    var bondAmount by remember { mutableStateOf("") }
+    var paymentDay by remember { mutableStateOf("1") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Tenant", fontWeight = FontWeight.Bold) },
+        title = { Text("New Tenant & Lease", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
+
+                Text("Tenant Details", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray500)
+
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
@@ -133,20 +128,59 @@ fun CreateTenantDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("Phone (optional)") },
+                    label = { Text("Phone") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                HorizontalDivider()
+                Text("Lease Details", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray500)
+
+                OutlinedTextField(
+                    value = unitId,
+                    onValueChange = { unitId = it },
+                    label = { Text("Unit ID *") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Login Password *") },
+                    value = startDate,
+                    onValueChange = { startDate = it },
+                    label = { Text("Start Date (YYYY-MM-DD) *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation()
+                    singleLine = true
                 )
+                OutlinedTextField(
+                    value = endDate,
+                    onValueChange = { endDate = it },
+                    label = { Text("End Date (YYYY-MM-DD, optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = rentAmount,
+                    onValueChange = { rentAmount = it },
+                    label = { Text("Rent Amount *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = bondAmount,
+                    onValueChange = { bondAmount = it },
+                    label = { Text("Bond Amount *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = paymentDay,
+                    onValueChange = { paymentDay = it },
+                    label = { Text("Payment Day of Month *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
                 Text(
-                    "The tenant will use this password to log in to the tenant portal.",
+                    "Portal access will be sent to the tenant's email/phone automatically.",
                     fontSize = 12.sp,
                     color = Gray500
                 )
@@ -155,22 +189,34 @@ fun CreateTenantDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
-                        errorMsg = "Full name, email and password are required."
-                        return@Button
-                    }
-                    onSave(
-                        CreateTenantRequest(
-                            fullName = fullName.trim(),
-                            email = email.trim(),
-                            phone = phone.trim().ifBlank { null },
-                            password = password
+                    val rent = rentAmount.toDoubleOrNull()
+                    val bond = bondAmount.toDoubleOrNull()
+                    val day = paymentDay.toIntOrNull()
+                    when {
+                        fullName.isBlank() || email.isBlank() -> errorMsg = "Full name and email are required."
+                        unitId.isBlank() || startDate.isBlank() -> errorMsg = "Unit ID and start date are required."
+                        rent == null || rent <= 0 -> errorMsg = "Enter a valid rent amount."
+                        bond == null || bond < 0 -> errorMsg = "Enter a valid bond amount."
+                        day == null || day !in 1..28 -> errorMsg = "Payment day must be between 1 and 28."
+                        else -> onSave(
+                            CreateTenantWithLeaseRequest(
+                                fullName = fullName.trim(),
+                                email = email.trim(),
+                                phone = phone.trim().ifBlank { null },
+                                unitId = unitId.trim(),
+                                startDate = startDate.trim(),
+                                endDate = endDate.trim().ifBlank { null },
+                                rentAmount = rent,
+                                rentFrequency = RentFrequency.MONTHLY,
+                                bondAmount = bond,
+                                paymentDay = day
+                            )
                         )
-                    )
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Brand600)
             ) {
-                Text("Save")
+                Text("Create")
             }
         },
         dismissButton = {

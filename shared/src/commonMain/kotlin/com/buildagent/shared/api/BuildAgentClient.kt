@@ -92,6 +92,13 @@ class BuildAgentClient(
             setBody(request)
         }.body()
 
+    suspend fun createTenantWithLease(request: CreateTenantWithLeaseRequest): ApiResponse<TenantWithLeaseResponse> =
+        http.post(url("/api/v1/tenants/with-lease")) {
+            auth(this)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
     // ── Leases ───────────────────────────────────────────────────────────────
 
     suspend fun getLeases(page: Int = 1, limit: Int = 20): ApiResponse<List<Lease>> =

@@ -99,6 +99,63 @@ class TenancyViewModelTest {
     }
 
     @Test
+    fun `createTenantWithLease calls onSuccess and reloads both tenants and leases`() = runTest {
+        val newTenant = fakeTenant.copy(id = "tenant-002", fullName = "Dana")
+        val newLease = fakeLease.copy(id = "lease-002", tenantId = "tenant-002")
+        coEvery { client.createTenantWithLease(any()) } returns ApiResponse(
+            TenantWithLeaseResponse(newTenant, newLease)
+        )
+        coEvery { client.getTenants() } returns ApiResponse(listOf(fakeTenant, newTenant))
+        coEvery { client.getLeases() } returns ApiResponse(listOf(fakeLease, newLease))
+        val vm = TenancyViewModel(client)
+
+        var successCalled = false
+        vm.createTenantWithLease(
+            CreateTenantWithLeaseRequest(
+                fullName = "Dana",
+                email = "dana@test.com",
+                unitId = "unit-002",
+                startDate = "2025-01-01",
+                rentAmount = 1800.0,
+                rentFrequency = RentFrequency.MONTHLY,
+                bondAmount = 3600.0,
+                paymentDay = 5
+            ),
+            onSuccess = { successCalled = true },
+            onError = {}
+        )
+
+        assertTrue(successCalled)
+        coVerify { client.createTenantWithLease(any()) }
+        assertEquals(2, vm.tenants.value.size)
+        assertEquals(2, vm.leases.value.size)
+    }
+
+    @Test
+    fun `createTenantWithLease calls onError on failure`() = runTest {
+        coEvery { client.createTenantWithLease(any()) } throws RuntimeException("unit not found")
+        val vm = TenancyViewModel(client)
+
+        var errorMsg: String? = null
+        vm.createTenantWithLease(
+            CreateTenantWithLeaseRequest(
+                fullName = "Dana",
+                email = "dana@test.com",
+                unitId = "bad-unit",
+                startDate = "2025-01-01",
+                rentAmount = 1800.0,
+                rentFrequency = RentFrequency.MONTHLY,
+                bondAmount = 3600.0,
+                paymentDay = 5
+            ),
+            onSuccess = {},
+            onError = { errorMsg = it }
+        )
+
+        assertTrue(errorMsg != null)
+    }
+
+    @Test
     fun `createLease calls onSuccess and reloads leases`() = runTest {
         val newLease = fakeLease.copy(id = "lease-002")
         coEvery { client.createLease(any()) } returns ApiResponse(newLease)

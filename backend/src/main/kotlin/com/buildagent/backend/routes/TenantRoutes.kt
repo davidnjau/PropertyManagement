@@ -3,7 +3,10 @@ package com.buildagent.backend.routes
 import com.buildagent.backend.auth.requireRole
 import com.buildagent.backend.auth.userPrincipal
 import com.buildagent.backend.services.TenantService
-import com.buildagent.shared.models.*
+import com.buildagent.shared.models.ApiResponse
+import com.buildagent.shared.models.CreateTenantRequest
+import com.buildagent.shared.models.CreateTenantWithLeaseRequest
+import com.buildagent.shared.models.PaginationMeta
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -29,6 +32,12 @@ fun Route.tenantRoutes(tenantService: TenantService) {
                 p.requireRole("ADMIN", "AGENT")
                 val tenant = tenantService.createTenant(p.agencyId, call.receive<CreateTenantRequest>())
                 call.respond(HttpStatusCode.Created, ApiResponse(data = tenant))
+            }
+            post("/with-lease") {
+                val p = call.userPrincipal()
+                p.requireRole("ADMIN", "AGENT")
+                val result = tenantService.createTenantWithLease(p.agencyId, call.receive<CreateTenantWithLeaseRequest>())
+                call.respond(HttpStatusCode.Created, ApiResponse(data = result))
             }
             get("/{id}") {
                 val p = call.userPrincipal()

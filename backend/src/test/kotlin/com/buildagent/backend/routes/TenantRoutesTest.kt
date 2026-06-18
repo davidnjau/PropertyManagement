@@ -115,4 +115,91 @@ class TenantRoutesTest {
         }
         assertEquals(HttpStatusCode.NoContent, response.status)
     }
+
+    @Test
+    fun `POST tenants with-lease creates tenant and lease and returns 201`() = testApplication {
+        val service = mockk<TenantService>()
+        val fakeResult = TenantWithLeaseResponse(
+            tenant = fakeTenant,
+            lease = Lease(
+                id = "lease-001",
+                unitId = "unit-001",
+                tenantId = fakeTenant.id,
+                startDate = "2025-01-01",
+                rentAmount = 1800.0,
+                rentFrequency = RentFrequency.MONTHLY,
+                bondAmount = 3600.0,
+                paymentDay = 5,
+                status = LeaseStatus.ACTIVE,
+                createdAt = "2025-01-01T00:00:00Z",
+                updatedAt = "2025-01-01T00:00:00Z"
+            )
+        )
+        coEvery { service.createTenantWithLease(any(), any()) } returns fakeResult
+        configureTestRoutes { tenantRoutes(service) }
+
+        val client = jsonClient()
+        val response = client.post("/api/v1/tenants/with-lease") {
+            bearerAuth(testToken())
+            contentType(ContentType.Application.Json)
+            setBody(
+                json.encodeToString(
+                    CreateTenantWithLeaseRequest(
+                        fullName = "Alice Tenant",
+                        email = "alice@tenant.com",
+                        unitId = "unit-001",
+                        startDate = "2025-01-01",
+                        rentAmount = 1800.0,
+                        rentFrequency = RentFrequency.MONTHLY,
+                        bondAmount = 3600.0,
+                        paymentDay = 5
+                    )
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+        assertTrue(response.bodyAsText().contains("alice@tenant.com"))
+        assertTrue(response.bodyAsText().contains("lease-001"))
+    }
+
+    @Test
+    fun `POST tenants with-lease returns 401 without token`() = testApplication {
+        val service = mockk<TenantService>()
+        configureTestRoutes { tenantRoutes(service) }
+
+        val response = client.post("/api/v1/tenants/with-lease") {
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `POST tenants with-lease returns 500 when unit not found`() = testApplication {
+        val service = mockk<TenantService>()
+        coEvery { service.createTenantWithLease(any(), any()) } throws
+            IllegalStateException("Unit not found or does not belong to this agency")
+        configureTestRoutes { tenantRoutes(service) }
+
+        val client = jsonClient()
+        val response = client.post("/api/v1/tenants/with-lease") {
+            bearerAuth(testToken())
+            contentType(ContentType.Application.Json)
+            setBody(
+                json.encodeToString(
+                    CreateTenantWithLeaseRequest(
+                        fullName = "Alice",
+                        email = "alice@tenant.com",
+                        unitId = "00000000-0000-0000-0000-000000000000",
+                        startDate = "2025-01-01",
+                        rentAmount = 1800.0,
+                        rentFrequency = RentFrequency.MONTHLY,
+                        bondAmount = 3600.0,
+                        paymentDay = 5
+                    )
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+    }
 }

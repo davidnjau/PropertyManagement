@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import com.buildagent.shared.api.BuildAgentClient
 import com.buildagent.shared.models.CreateLeaseRequest
 import com.buildagent.shared.models.CreateTenantRequest
+import com.buildagent.shared.models.CreateTenantWithLeaseRequest
 import com.buildagent.shared.models.Lease
 import com.buildagent.shared.models.Tenant
 import kotlinx.coroutines.flow.*
@@ -49,6 +50,19 @@ class TenancyViewModel(private val client: BuildAgentClient) : ScreenModel {
                 onSuccess(tenant.id)
             } catch (e: Exception) {
                 onError(e.message ?: "Failed to create tenant.")
+            }
+        }
+    }
+
+    fun createTenantWithLease(request: CreateTenantWithLeaseRequest, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        screenModelScope.launch {
+            try {
+                client.createTenantWithLease(request)
+                loadTenants()
+                loadLeases()
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to create tenant and lease.")
             }
         }
     }

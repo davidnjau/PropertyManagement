@@ -131,6 +131,33 @@ data class CreateLeaseRequest(
 )
 
 @Serializable
+data class CreateTenantWithLeaseRequest(
+    // Tenant fields
+    val fullName: String,
+    val email: String,
+    val phone: String? = null,
+    val dateOfBirth: String? = null,
+    val idType: String? = null,
+    val idReference: String? = null,
+    val emergencyContactName: String? = null,
+    val emergencyContactPhone: String? = null,
+    val notes: String? = null,
+    // Lease fields
+    val unitId: String,
+    val startDate: String,
+    val endDate: String? = null,
+    val rentAmount: Double,
+    val rentFrequency: RentFrequency = RentFrequency.MONTHLY,
+    val bondAmount: Double,
+    val paymentDay: Int = 1,
+    val specialConditions: String? = null,
+    val moveInDate: String? = null
+)
+
+@Serializable
+data class TenantWithLeaseResponse(val tenant: Tenant, val lease: Lease)
+
+@Serializable
 data class TerminateLeaseRequest(val moveOutDate: String)
 
 @Serializable
