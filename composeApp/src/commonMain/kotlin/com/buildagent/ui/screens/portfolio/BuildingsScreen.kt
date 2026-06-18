@@ -58,11 +58,11 @@ fun BuildingsScreen() {
     if (showDialog) {
         CreateBuildingDialog(
             onDismiss = { showDialog = false },
-            onSave = { request ->
+            onSave = { request, onDialogError ->
                 vm.createBuilding(
                     request,
                     onSuccess = { showDialog = false },
-                    onError = { }
+                    onError = onDialogError
                 )
             }
         )
@@ -72,7 +72,7 @@ fun BuildingsScreen() {
 @Composable
 fun CreateBuildingDialog(
     onDismiss: () -> Unit,
-    onSave: (CreateBuildingRequest) -> Unit
+    onSave: (CreateBuildingRequest, onError: (String) -> Unit) -> Unit
 ) {
     var address by remember { mutableStateOf("") }
     var suburb by remember { mutableStateOf("") }
@@ -140,7 +140,7 @@ fun CreateBuildingDialog(
                             name = name.trim().ifBlank { null },
                             buildingType = BuildingType.RESIDENTIAL
                         )
-                    )
+                    ) { err -> errorMsg = err }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Brand600)
             ) {

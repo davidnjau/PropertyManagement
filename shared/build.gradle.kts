@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinSerialization)
@@ -27,6 +29,11 @@ kotlin {
     js(IR) {
         browser()
         nodejs()
+    }
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
     }
 
     sourceSets {
@@ -63,6 +70,10 @@ kotlin {
 
         jsMain.dependencies {
             implementation(libs.ktor.client.js)
+        }
+
+        val wasmJsMain by getting {
+            // ktor-client-core (from commonMain) provides the fetch engine for wasmJs
         }
     }
 }

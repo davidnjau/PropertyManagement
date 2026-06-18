@@ -32,7 +32,7 @@ dependencies {
     implementation(libs.ktor.server.request.validation)
     implementation(libs.ktor.server.swagger)
     implementation(libs.ktor.server.openapi)
-    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.server.serialization.kotlinx.json)
 
     // Database
     implementation(libs.exposed.core)

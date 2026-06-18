@@ -114,7 +114,7 @@ fun AdminUsersScreen() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAgentDialog(onDismiss: () -> Unit, onSave: (CreateUserRequest) -> Unit) {
-    val userTypes = listOf(UserType.AGENT, UserType.ADMIN)
+    val userTypes = listOf(UserType.AGENT, UserType.AGENCY)
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }

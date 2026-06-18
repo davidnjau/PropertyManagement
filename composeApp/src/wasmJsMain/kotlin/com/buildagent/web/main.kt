@@ -9,10 +9,7 @@ import org.koin.core.context.startKoin
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     startKoin {
-        modules(appModules(
-            baseUrl = "/api",
-            tokenProvider = { js("localStorage.getItem('buildagent_token') || ''") as String }
-        ))
+        modules(appModules(baseUrl = "http://localhost:3001"))
     }
     CanvasBasedWindow(canvasElementId = "ComposeTarget") {
         App()
