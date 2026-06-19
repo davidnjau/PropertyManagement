@@ -9,6 +9,7 @@ version = "1.0.0"
 
 kotlin { jvmToolchain(21) }
 
+
 tasks.test { useJUnitPlatform() }
 
 application {
@@ -17,7 +18,18 @@ application {
 }
 
 dependencies {
-    implementation(project(":shared"))
+    implementation(project(":shared")) {
+        exclude(group = "io.ktor", module = "ktor-client-core")
+        exclude(group = "io.ktor", module = "ktor-client-content-negotiation")
+        exclude(group = "io.ktor", module = "ktor-client-logging")
+        exclude(group = "io.ktor", module = "ktor-io")
+        exclude(group = "io.ktor", module = "ktor-utils")
+        exclude(group = "io.ktor", module = "ktor-http")
+        exclude(group = "io.ktor", module = "ktor-events")
+        exclude(group = "io.ktor", module = "ktor-serialization")
+        exclude(group = "io.ktor", module = "ktor-serialization-kotlinx")
+        exclude(group = "io.ktor", module = "ktor-serialization-kotlinx-json")
+    }
 
     // Ktor Server
     implementation(libs.ktor.server.core)

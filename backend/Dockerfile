@@ -1,5 +1,5 @@
 # Stage 1: Build (gradle image already has Gradle installed — no gradlew needed)
-FROM gradle:8.7-jdk17 AS builder
+FROM gradle:8.7-jdk21 AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ COPY backend/ backend/
 RUN gradle :backend:installDist --no-daemon
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 

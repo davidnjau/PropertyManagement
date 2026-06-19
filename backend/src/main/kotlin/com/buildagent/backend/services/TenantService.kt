@@ -291,7 +291,7 @@ class TenantService(private val notificationService: NotificationService = Notif
                     notificationService.sendOtp(tenant.phone, tenant.email, otp, tenant.fullName)
                 }
 
-                existing[UsersTable.roles].all { it == UserRole.TENANT.name } -> {
+                (existing[UsersTable.roles] ?: emptyList()).all { it == UserRole.TENANT.name } -> {
                     // Already a tenant on another lease — notify of this new lease
                     notificationService.sendLeaseCreatedNotification(
                         tenant.phone, tenant.email, tenant.fullName, leaseId

@@ -24,7 +24,7 @@ class AdminService {
             .where { UsersTable.agencyId eq UUID.fromString(agencyId) and (UsersTable.isActive eq true) }
             .orderBy(UsersTable.createdAt)
             .map { row ->
-                val roles = row[UsersTable.roles]
+                val roles = row[UsersTable.roles] ?: emptyList()
                 AdminUserResponse(
                     id = row[UsersTable.id].value.toString(),
                     agencyId = agencyId,

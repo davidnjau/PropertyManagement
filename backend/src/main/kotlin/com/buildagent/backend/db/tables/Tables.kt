@@ -26,7 +26,7 @@ object UsersTable : UUIDTable("users") {
     val auth0Sub = varchar("auth0_sub", 255).uniqueIndex()
     val email = varchar("email", 255)
     val fullName = varchar("full_name", 255)
-    val roles = json<List<String>>("roles", Json.Default)
+    val roles = json<List<String>>("roles", Json.Default).nullable()
     val phone = varchar("phone", 50).nullable()
     val isActive = bool("is_active").default(true)
     val createdAt: Column<Instant> = timestamp("created_at")

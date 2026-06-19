@@ -115,7 +115,7 @@ class AuthService(private val jwtService: LocalJwtService) {
         )
         require(valid) { "Invalid credentials" }
 
-        val roles = userRow[UsersTable.roles]
+        val roles = userRow[UsersTable.roles] ?: emptyList()
         val token = jwtService.issue(
             userId = foundUserId.value.toString(),
             agencyId = userRow[UsersTable.agencyId].value.toString(),
@@ -142,7 +142,7 @@ class AuthService(private val jwtService: LocalJwtService) {
             .firstOrNull()
             ?: throw NoSuchElementException("User not found")
 
-        val roles = userRow[UsersTable.roles]
+        val roles = userRow[UsersTable.roles] ?: emptyList()
         AuthUser(
             id = userRow[UsersTable.id].value.toString(),
             agencyId = userRow[UsersTable.agencyId].value.toString(),
