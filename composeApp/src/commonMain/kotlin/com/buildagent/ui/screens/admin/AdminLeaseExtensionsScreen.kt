@@ -142,7 +142,8 @@ fun ReviewLeaseExtensionDialog(
                     label = { Text("Agent Notes (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
-                    maxLines = 4
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
             }
         },

@@ -107,14 +107,16 @@ fun RecordPaymentDialog(
                     onValueChange = { leaseId = it },
                     label = { Text("Lease ID *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it },
                     label = { Text("Amount *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 ExposedDropdownMenuBox(
                     expanded = typeMenuExpanded,
@@ -126,7 +128,8 @@ fun RecordPaymentDialog(
                         readOnly = true,
                         label = { Text("Payment Type *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                     ExposedDropdownMenu(
                         expanded = typeMenuExpanded,
@@ -140,26 +143,23 @@ fun RecordPaymentDialog(
                         }
                     }
                 }
-                OutlinedTextField(
+                DatePickerField(
                     value = periodFrom,
                     onValueChange = { periodFrom = it },
-                    label = { Text("Period From (YYYY-MM-DD) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Period From *"
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = periodTo,
                     onValueChange = { periodTo = it },
-                    label = { Text("Period To (YYYY-MM-DD) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Period To *"
                 )
                 OutlinedTextField(
                     value = referenceNo,
                     onValueChange = { referenceNo = it },
                     label = { Text("Reference No (optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
             }
         },

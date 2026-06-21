@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.PaymentType
 import com.buildagent.shared.models.RecordPaymentRequest
+import com.buildagent.ui.components.DatePickerField
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.components.StatusBadge
 import com.buildagent.ui.components.paymentStatusBadge
@@ -153,28 +154,26 @@ fun RecordTenantPaymentDialog(
                     onValueChange = { amount = it },
                     label = { Text("Amount *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = periodFrom,
                     onValueChange = { periodFrom = it },
-                    label = { Text("Period From (YYYY-MM-DD) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Period From *"
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = periodTo,
                     onValueChange = { periodTo = it },
-                    label = { Text("Period To (YYYY-MM-DD) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Period To *"
                 )
                 OutlinedTextField(
                     value = referenceNo,
                     onValueChange = { referenceNo = it },
                     label = { Text("Reference No (optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
             }
         },

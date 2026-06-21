@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.CreateLeaseExtensionRequest
 import com.buildagent.shared.models.Lease
+import com.buildagent.ui.components.DatePickerField
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.utils.fmt2dp
 import com.buildagent.ui.components.StatusBadge
@@ -135,12 +136,10 @@ fun ExtendLeaseDialog(
                 }
 
                 if (useCustom) {
-                    OutlinedTextField(
+                    DatePickerField(
                         value = customDate,
                         onValueChange = { customDate = it },
-                        label = { Text("End Date (YYYY-MM-DD)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        label = "End Date"
                     )
                 }
 
@@ -150,7 +149,8 @@ fun ExtendLeaseDialog(
                     label = { Text("Notes (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
-                    maxLines = 3
+                    maxLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
             }
         },

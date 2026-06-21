@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.CreateTenantWithLeaseRequest
 import com.buildagent.shared.models.RentFrequency
+import com.buildagent.ui.components.DatePickerField
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
 
@@ -116,21 +117,24 @@ fun CreateTenantAndLeaseDialog(
                     onValueChange = { fullName = it },
                     label = { Text("Full Name *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text("Phone") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
 
                 HorizontalDivider()
@@ -141,42 +145,42 @@ fun CreateTenantAndLeaseDialog(
                     onValueChange = { unitId = it },
                     label = { Text("Unit ID *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = startDate,
                     onValueChange = { startDate = it },
-                    label = { Text("Start Date (YYYY-MM-DD) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Start Date *"
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = endDate,
                     onValueChange = { endDate = it },
-                    label = { Text("End Date (YYYY-MM-DD, optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "End Date (optional)"
                 )
                 OutlinedTextField(
                     value = rentAmount,
                     onValueChange = { rentAmount = it },
                     label = { Text("Rent Amount *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = bondAmount,
                     onValueChange = { bondAmount = it },
                     label = { Text("Bond Amount *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = paymentDay,
                     onValueChange = { paymentDay = it },
                     label = { Text("Payment Day of Month *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
 
                 Text(

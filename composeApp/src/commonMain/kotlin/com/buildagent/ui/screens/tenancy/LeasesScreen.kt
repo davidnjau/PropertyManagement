@@ -130,7 +130,8 @@ fun CreateLeaseDialog(
                             readOnly = true,
                             label = { Text("Tenant *") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tenantMenuExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                         )
                         ExposedDropdownMenu(
                             expanded = tenantMenuExpanded,
@@ -150,7 +151,8 @@ fun CreateLeaseDialog(
                         onValueChange = { selectedTenantId = it },
                         label = { Text("Tenant ID *") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                 }
 
@@ -159,42 +161,42 @@ fun CreateLeaseDialog(
                     onValueChange = { unitId = it },
                     label = { Text("Unit ID *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = startDate,
                     onValueChange = { startDate = it },
-                    label = { Text("Start Date (YYYY-MM-DD) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Start Date *"
                 )
-                OutlinedTextField(
+                DatePickerField(
                     value = endDate,
                     onValueChange = { endDate = it },
-                    label = { Text("End Date (YYYY-MM-DD, optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "End Date (optional)"
                 )
                 OutlinedTextField(
                     value = rentAmount,
                     onValueChange = { rentAmount = it },
                     label = { Text("Rent Amount *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = bondAmount,
                     onValueChange = { bondAmount = it },
                     label = { Text("Bond Amount *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = paymentDay,
                     onValueChange = { paymentDay = it },
                     label = { Text("Payment Day (1-28)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
             }
         },

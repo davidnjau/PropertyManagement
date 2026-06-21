@@ -111,14 +111,16 @@ fun CreateMaintenanceDialog(
                     onValueChange = { unitId = it },
                     label = { Text("Unit ID *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Title *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
                     value = description,
@@ -126,7 +128,8 @@ fun CreateMaintenanceDialog(
                     label = { Text("Description *") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
-                    maxLines = 4
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
@@ -138,7 +141,8 @@ fun CreateMaintenanceDialog(
                         readOnly = true,
                         label = { Text("Category *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                     ExposedDropdownMenu(
                         expanded = categoryExpanded,
@@ -162,7 +166,8 @@ fun CreateMaintenanceDialog(
                         readOnly = true,
                         label = { Text("Priority *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = priorityExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                     ExposedDropdownMenu(
                         expanded = priorityExpanded,
