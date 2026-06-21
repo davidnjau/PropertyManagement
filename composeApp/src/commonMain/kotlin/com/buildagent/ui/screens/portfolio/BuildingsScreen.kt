@@ -23,6 +23,8 @@ import com.buildagent.shared.models.BuildingType
 import com.buildagent.shared.models.BuildingUnit
 import com.buildagent.shared.models.CreateBuildingRequest
 import com.buildagent.shared.models.CreateUnitRequest
+import com.buildagent.shared.models.Lease
+import com.buildagent.shared.models.LeaseStatus
 import com.buildagent.shared.models.UnitStatus
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
@@ -105,11 +107,21 @@ private fun BuildingDetailView(
     var unitsLoading by remember { mutableStateOf(true) }
     var refreshTrigger by remember { mutableStateOf(0) }
     var showAddUnitsDialog by remember { mutableStateOf(false) }
+    var selectedUnit by remember { mutableStateOf<BuildingUnit?>(null) }
 
     LaunchedEffect(building.id, refreshTrigger) {
         unitsLoading = true
         units = vm.getUnits(building.id) ?: emptyList()
         unitsLoading = false
+    }
+
+    if (selectedUnit != null) {
+        UnitDetailView(
+            unit = selectedUnit!!,
+            vm = vm,
+            onBack = { selectedUnit = null }
+        )
+        return
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
@@ -213,7 +225,7 @@ private fun BuildingDetailView(
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    units.forEach { unit -> UnitCard(unit) }
+                    units.forEach { unit -> UnitCard(unit, onClick = { selectedUnit = unit }) }
                 }
             }
         }
@@ -229,6 +241,235 @@ private fun BuildingDetailView(
                 refreshTrigger++
             }
         )
+    }
+}
+
+@Composable
+private fun UnitDetailView(
+    unit: BuildingUnit,
+    vm: PortfolioViewModel,
+    onBack: () -> Unit
+) {
+    var fullUnit by remember { mutableStateOf<BuildingUnit?>(null) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(unit.id) {
+        loading = true
+        fullUnit = vm.getUnit(unit.id) ?: unit
+        loading = false
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Gray100,
+                modifier = Modifier.clickable { onBack() }
+            ) {
+                Text(
+                    "< Back",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 13.sp, color = Brand600, fontWeight = FontWeight.Medium
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Unit ${unit.unitNumber}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Gray900)
+                Text(
+                    if (unit.status == UnitStatus.OCCUPIED) "Occupied" else unit.status.name.replace('_', ' '),
+                    fontSize = 13.sp,
+                    color = if (unit.status == UnitStatus.OCCUPIED) Brand600 else Gray500
+                )
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        if (loading) {
+            LoadingContent()
+            return@Column
+        }
+
+        val u = fullUnit ?: unit
+
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Unit specs card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = White),
+                border = BorderStroke(1.dp, Gray300),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    Box(
+                        modifier = Modifier.width(4.dp).fillMaxHeight()
+                            .background(Brush.verticalGradient(listOf(Brand600, Cyan500)))
+                    )
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                        Text("Unit Details", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Gray900)
+                        Spacer(Modifier.height(10.dp))
+                        UnitDetailRow("Unit Number", u.unitNumber)
+                        u.floor?.let { UnitDetailRow("Floor", it.toString()) }
+                        if (u.bedrooms > 0) UnitDetailRow("Bedrooms", u.bedrooms.toString())
+                        if (u.bathrooms > 0) UnitDetailRow("Bathrooms", u.bathrooms.toString())
+                        if (u.parkingSpaces > 0) UnitDetailRow("Parking", u.parkingSpaces.toString())
+                        u.areaSqm?.let { UnitDetailRow("Area", "${it.toInt()} m²") }
+                        u.rentAmount?.let {
+                            UnitDetailRow("Rent", "A$${it.fmt2dp()} / ${u.rentFrequency.name.lowercase()}")
+                        }
+                        UnitDetailRow("Status", u.status.name.replace('_', ' '))
+                        u.notes?.let {
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider(color = Gray100)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Notes", fontSize = 11.sp, color = Gray500, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(4.dp))
+                            Text(it, fontSize = 13.sp, color = Gray700)
+                        }
+                    }
+                }
+            }
+
+            // Lease & Tenant section
+            val leases = u.leases ?: emptyList()
+            Text("Lease & Tenant", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Gray900)
+
+            if (leases.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = White),
+                    border = BorderStroke(1.dp, Gray300),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🔑", fontSize = 32.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text("No active lease", fontSize = 14.sp, color = Gray500)
+                            Text("This unit is currently vacant.", fontSize = 12.sp, color = Gray500)
+                        }
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    leases.forEach { lease -> UnitLeaseCard(lease) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnitLeaseCard(lease: Lease) {
+    val isActive = lease.status == LeaseStatus.ACTIVE || lease.computedStatus == LeaseStatus.ACTIVE
+    val accentColor = if (isActive) Brand600 else Gray300
+    val statusColor = when (lease.computedStatus ?: lease.status) {
+        LeaseStatus.ACTIVE -> Brand600
+        LeaseStatus.EXPIRING_SOON -> Success600
+        LeaseStatus.PERIODIC -> Cyan500
+        LeaseStatus.EXPIRED, LeaseStatus.TERMINATED -> Danger600
+        else -> Gray500
+    }
+    val statusBg = when (lease.computedStatus ?: lease.status) {
+        LeaseStatus.ACTIVE -> Brand100
+        LeaseStatus.EXPIRING_SOON -> Success600.copy(alpha = 0.12f)
+        LeaseStatus.PERIODIC -> Cyan500.copy(alpha = 0.12f)
+        LeaseStatus.EXPIRED, LeaseStatus.TERMINATED -> Danger600.copy(alpha = 0.10f)
+        else -> Gray100
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        border = BorderStroke(1.dp, Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(accentColor))
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).fillMaxWidth()) {
+                // Lease status + dates
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Lease", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
+                    Surface(shape = RoundedCornerShape(6.dp), color = statusBg) {
+                        Text(
+                            (lease.computedStatus ?: lease.status).name.replace('_', ' '),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = statusColor
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                val dateRange = buildString {
+                    append("From: ${lease.startDate.take(10)}")
+                    lease.endDate?.let { append("   To: ${it.take(10)}") }
+                }
+                Text(dateRange, fontSize = 12.sp, color = Gray500)
+                Spacer(Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Column {
+                        Text("Rent", fontSize = 11.sp, color = Gray500)
+                        Text(
+                            "A$${lease.rentAmount.fmt2dp()} / ${lease.rentFrequency.name.lowercase()}",
+                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Gray900
+                        )
+                    }
+                    Column {
+                        Text("Deposit", fontSize = 11.sp, color = Gray500)
+                        Text("A$${lease.bondAmount.fmt2dp()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Gray900)
+                    }
+                    Column {
+                        Text("Pay Day", fontSize = 11.sp, color = Gray500)
+                        Text("Day ${lease.paymentDay}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Gray900)
+                    }
+                }
+
+                // Tenant section
+                lease.tenant?.let { tenant ->
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider(color = Gray100)
+                    Spacer(Modifier.height(10.dp))
+                    Text("Tenant", fontSize = 11.sp, color = Gray500, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(36.dp)
+                                .background(Brand50, RoundedCornerShape(18.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                tenant.fullName.take(1).uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Brand600
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(tenant.fullName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
+                            Text(tenant.email, fontSize = 12.sp, color = Gray500)
+                            tenant.phone?.let { Text(it, fontSize = 12.sp, color = Gray500) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnitDetailRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(label, fontSize = 12.sp, color = Gray500, modifier = Modifier.width(100.dp))
+        Text(value, fontSize = 13.sp, color = Gray900, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -426,10 +667,10 @@ private fun AddUnitsDialog(
 }
 
 @Composable
-private fun UnitCard(unit: BuildingUnit) {
+private fun UnitCard(unit: BuildingUnit, onClick: () -> Unit = {}) {
     val isOccupied = unit.status == UnitStatus.OCCUPIED
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         border = BorderStroke(1.dp, Gray300),
@@ -464,17 +705,20 @@ private fun UnitCard(unit: BuildingUnit) {
                         Text("A$${it.fmt2dp()} / ${unit.rentFrequency.name.lowercase()}", fontSize = 12.sp, color = Gray500)
                     }
                 }
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (isOccupied) Brand100 else Gray100
-                ) {
-                    Text(
-                        text = unit.status.name,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isOccupied) Brand600 else Gray700
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isOccupied) Brand100 else Gray100
+                    ) {
+                        Text(
+                            text = unit.status.name.replace('_', ' '),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isOccupied) Brand600 else Gray700
+                        )
+                    }
+                    Text("›", fontSize = 20.sp, color = Gray300)
                 }
             }
         }
