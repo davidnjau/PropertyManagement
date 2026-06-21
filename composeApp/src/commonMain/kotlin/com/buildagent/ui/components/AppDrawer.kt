@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,13 +52,21 @@ fun AppDrawer(
             .verticalScroll(rememberScrollState())
             .padding(12.dp)
     ) {
-        Text(
-            text = "BuildAgent",
-            color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)
-        )
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)) {
+            Text(
+                text = "BuildAgent",
+                color = White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Property Management",
+                color = SidebarLabel,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.5.sp
+            )
+        }
         Spacer(Modifier.height(8.dp))
 
         navItems.forEach { item ->
@@ -67,13 +75,14 @@ fun AppDrawer(
 
         if ("ADMIN" in roles || "AGENT" in roles) {
             Spacer(Modifier.height(16.dp))
-            Divider(color = Color(0xFF374151), thickness = 1.dp)
+            HorizontalDivider(color = SidebarDivider, thickness = 1.dp)
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Admin",
-                color = Color(0xFF9CA3AF),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
+                text = "ADMIN",
+                color = SidebarLabel,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
             adminNavItems.forEach { item ->
@@ -91,7 +100,7 @@ private fun DrawerNavRow(item: NavItem, selectedIndex: Int, onSelect: (Int) -> U
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) Brand600 else Color.Transparent)
+            .background(if (selected) SidebarSelected else Color.Transparent)
             .clickable { onSelect(item.index) }
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
@@ -99,9 +108,18 @@ private fun DrawerNavRow(item: NavItem, selectedIndex: Int, onSelect: (Int) -> U
         Spacer(Modifier.width(10.dp))
         Text(
             text = item.label,
-            color = if (selected) Color.White else Color(0xFF9CA3AF),
+            color = if (selected) White else SidebarText,
             fontSize = 14.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
+        if (selected) {
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Brand600)
+            )
+        }
     }
 }

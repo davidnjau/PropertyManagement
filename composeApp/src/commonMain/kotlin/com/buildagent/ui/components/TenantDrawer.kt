@@ -41,13 +41,13 @@ fun TenantDrawer(
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)) {
             Text(
                 text = "BuildAgent",
-                color = Color.White,
+                color = White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = userName,
-                color = Color(0xFF9CA3AF),
+                color = SidebarText,
                 fontSize = 12.sp
             )
         }
@@ -60,7 +60,7 @@ fun TenantDrawer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (selected) Brand600 else Color.Transparent)
+                    .background(if (selected) SidebarSelected else Color.Transparent)
                     .clickable { onSelect(item.index) }
                     .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
@@ -68,10 +68,19 @@ fun TenantDrawer(
                 Spacer(Modifier.width(10.dp))
                 Text(
                     text = item.label,
-                    color = if (selected) Color.White else Color(0xFF9CA3AF),
+                    color = if (selected) White else SidebarText,
                     fontSize = 14.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
                 )
+                if (selected) {
+                    Spacer(Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Brand600)
+                    )
+                }
             }
         }
 
@@ -87,7 +96,7 @@ fun TenantDrawer(
         ) {
             Text("🚪", fontSize = 16.sp)
             Spacer(Modifier.width(10.dp))
-            Text("Sign Out", color = Color(0xFF9CA3AF), fontSize = 14.sp)
+            Text("Sign Out", color = SidebarText, fontSize = 14.sp)
         }
     }
 }

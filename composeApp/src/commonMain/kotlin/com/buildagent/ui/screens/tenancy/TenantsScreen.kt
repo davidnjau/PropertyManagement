@@ -102,6 +102,8 @@ fun CreateTenantAndLeaseDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        titleContentColor = MaterialTheme.colorScheme.primary,
         title = { Text("New Tenant & Lease", fontWeight = FontWeight.Bold) },
         text = {
             Column(

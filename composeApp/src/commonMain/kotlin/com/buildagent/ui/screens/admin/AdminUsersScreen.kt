@@ -125,6 +125,8 @@ fun AddAgentDialog(onDismiss: () -> Unit, onSave: (CreateUserRequest) -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        titleContentColor = MaterialTheme.colorScheme.primary,
         title = { Text("Add Team Member", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
