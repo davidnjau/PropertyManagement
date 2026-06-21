@@ -1,17 +1,22 @@
 package com.buildagent.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.buildagent.shared.models.AdminUserResponse
 import com.buildagent.shared.models.CreateUserRequest
 import com.buildagent.shared.models.UserType
 import com.buildagent.ui.components.LoadingContent
@@ -33,15 +38,18 @@ fun AdminUsersScreen() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Team Members", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("${users.size} users", fontSize = 13.sp, color = Gray500)
+                Text("Team Members", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Gray900)
+                Text(
+                    if (users.isEmpty()) "No members yet" else "${users.size} members",
+                    fontSize = 13.sp, color = Gray500
+                )
             }
             Button(
                 onClick = { showDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = Brand600),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("+ Add Agent")
+                Text("+ Add Agent", fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(20.dp))
@@ -53,46 +61,19 @@ fun AdminUsersScreen() {
 
         if (loading) {
             LoadingContent()
+        } else if (users.isEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("👥", fontSize = 48.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text("No team members yet", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Gray700)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Add your first agent to get started.", fontSize = 13.sp, color = Gray500)
+                }
+            }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(users) { user ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        elevation = CardDefaults.cardElevation(1.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(user.fullName, fontWeight = FontWeight.Medium)
-                                Text(user.email, fontSize = 13.sp, color = Gray500)
-                                user.phone?.let { Text(it, fontSize = 12.sp, color = Gray500) }
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if ("ADMIN" in user.roles) Brand100 else Gray100
-                            ) {
-                                Text(
-                                    user.roles.joinToString(", "),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if ("ADMIN" in user.roles) Brand600 else Gray700
-                                )
-                            }
-                        }
-                    }
-                }
-                if (users.isEmpty() && !loading) {
-                    item {
-                        Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                            Text("No team members yet.", color = Gray500)
-                        }
-                    }
-                }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(users) { user -> TeamMemberCard(user) }
             }
         }
     }
@@ -108,6 +89,106 @@ fun AdminUsersScreen() {
                 )
             }
         )
+    }
+}
+
+@Composable
+fun TeamMemberCard(user: AdminUserResponse) {
+    val initials = user.fullName
+        .split(" ")
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+    val isAdmin = "ADMIN" in user.roles || "AGENCY" in user.roles
+    val isAgent = "AGENT" in user.roles
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        border = BorderStroke(1.dp, Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // Left accent stripe
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(
+                        Brush.verticalGradient(
+                            if (isAdmin) listOf(Brand600, Cyan500)
+                            else listOf(Gray300, Gray300)
+                        )
+                    )
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Avatar with initials
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(
+                            Brush.linearGradient(
+                                if (isAdmin) listOf(Brand600, Brand700)
+                                else if (isAgent) listOf(Cyan500, Brand600)
+                                else listOf(Gray500, Gray700)
+                            ),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initials,
+                        color = White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(user.fullName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Gray900)
+                    Spacer(Modifier.height(2.dp))
+                    Text(user.email, fontSize = 13.sp, color = Gray500)
+                    user.phone?.let {
+                        Text(it, fontSize = 12.sp, color = Gray500)
+                    }
+                }
+
+                // Role badges
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    user.roles.forEach { role ->
+                        val adminRole = role == "ADMIN" || role == "AGENCY"
+                        val agentRole = role == "AGENT"
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = when {
+                                adminRole -> Brand100
+                                agentRole -> Cyan100
+                                else -> Gray100
+                            }
+                        ) {
+                            Text(
+                                text = role,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = when {
+                                    adminRole -> Brand600
+                                    agentRole -> Cyan500
+                                    else -> Gray700
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
