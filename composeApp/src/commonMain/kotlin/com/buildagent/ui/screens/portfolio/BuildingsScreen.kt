@@ -22,6 +22,7 @@ import com.buildagent.shared.models.Building
 import com.buildagent.shared.models.BuildingType
 import com.buildagent.shared.models.BuildingUnit
 import com.buildagent.shared.models.CreateBuildingRequest
+import com.buildagent.shared.models.CreateUnitRequest
 import com.buildagent.shared.models.UnitStatus
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
@@ -102,8 +103,10 @@ private fun BuildingDetailView(
 ) {
     var units by remember { mutableStateOf<List<BuildingUnit>>(emptyList()) }
     var unitsLoading by remember { mutableStateOf(true) }
+    var refreshTrigger by remember { mutableStateOf(0) }
+    var showAddUnitsDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(building.id) {
+    LaunchedEffect(building.id, refreshTrigger) {
         unitsLoading = true
         units = vm.getUnits(building.id) ?: emptyList()
         unitsLoading = false
@@ -181,10 +184,20 @@ private fun BuildingDetailView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Units", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Gray900)
-                if (!unitsLoading) {
-                    val occupied = units.count { it.status == UnitStatus.OCCUPIED }
-                    Text("$occupied/${units.size} occupied", fontSize = 13.sp, color = Gray500)
+                Column {
+                    Text("Units", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Gray900)
+                    if (!unitsLoading) {
+                        val occupied = units.count { it.status == UnitStatus.OCCUPIED }
+                        Text("$occupied/${units.size} occupied", fontSize = 13.sp, color = Gray500)
+                    }
+                }
+                Button(
+                    onClick = { showAddUnitsDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text("+ Add Units", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -205,6 +218,211 @@ private fun BuildingDetailView(
             }
         }
     }
+
+    if (showAddUnitsDialog) {
+        AddUnitsDialog(
+            buildingId = building.id,
+            vm = vm,
+            onDismiss = { showAddUnitsDialog = false },
+            onSuccess = {
+                showAddUnitsDialog = false
+                refreshTrigger++
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddUnitsDialog(
+    buildingId: String,
+    vm: PortfolioViewModel,
+    onDismiss: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    var prefix by remember { mutableStateOf("A") }
+    var startFloor by remember { mutableStateOf("1") }
+    var endFloor by remember { mutableStateOf("5") }
+    var unitsPerFloor by remember { mutableStateOf("4") }
+    var bedrooms by remember { mutableStateOf("") }
+    var bathrooms by remember { mutableStateOf("") }
+    var rentAmount by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    val previewLines = remember(prefix, startFloor, endFloor, unitsPerFloor) {
+        val sf = startFloor.toIntOrNull() ?: return@remember emptyList<String>()
+        val ef = endFloor.toIntOrNull() ?: return@remember emptyList<String>()
+        val upf = unitsPerFloor.toIntOrNull()?.coerceAtLeast(1) ?: return@remember emptyList<String>()
+        if (sf > ef) return@remember emptyList<String>()
+        (sf..ef).map { floor ->
+            val names = (1..upf).joinToString(", ") { i -> "$prefix$floor${i.toString().padStart(2, '0')}" }
+            "Floor $floor: $names"
+        }
+    }
+
+    val totalUnits = remember(previewLines, unitsPerFloor) {
+        val upf = unitsPerFloor.toIntOrNull()?.coerceAtLeast(1) ?: 0
+        val sf = startFloor.toIntOrNull() ?: 0
+        val ef = endFloor.toIntOrNull() ?: 0
+        if (sf > ef || upf == 0) 0 else (ef - sf + 1) * upf
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        titleContentColor = MaterialTheme.colorScheme.primary,
+        title = { Text("Add Units", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
+
+                // Naming scheme
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = prefix,
+                        onValueChange = { prefix = it.uppercase().take(3) },
+                        label = { Text("Prefix") },
+                        placeholder = { Text("e.g. A") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                    OutlinedTextField(
+                        value = unitsPerFloor,
+                        onValueChange = { unitsPerFloor = it.filter { c -> c.isDigit() } },
+                        label = { Text("Units/Floor") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = startFloor,
+                        onValueChange = { startFloor = it.filter { c -> c.isDigit() } },
+                        label = { Text("Start Floor") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                    OutlinedTextField(
+                        value = endFloor,
+                        onValueChange = { endFloor = it.filter { c -> c.isDigit() } },
+                        label = { Text("End Floor") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                }
+
+                HorizontalDivider(color = Gray100)
+
+                // Optional unit specs
+                Text("Unit Specs (optional)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Gray500)
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = bedrooms,
+                        onValueChange = { bedrooms = it.filter { c -> c.isDigit() } },
+                        label = { Text("Bedrooms") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                    OutlinedTextField(
+                        value = bathrooms,
+                        onValueChange = { bathrooms = it.filter { c -> c.isDigit() } },
+                        label = { Text("Bathrooms") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                }
+
+                OutlinedTextField(
+                    value = rentAmount,
+                    onValueChange = { rentAmount = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Rent Amount (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                )
+
+                // Preview
+                if (previewLines.isNotEmpty()) {
+                    HorizontalDivider(color = Gray100)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Brand50
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                "$totalUnits units will be created",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Brand600
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            previewLines.forEach { line ->
+                                Text(line, fontSize = 12.sp, color = Brand600)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val sf = startFloor.toIntOrNull()
+                    val ef = endFloor.toIntOrNull()
+                    val upf = unitsPerFloor.toIntOrNull()?.coerceAtLeast(1)
+                    if (prefix.isBlank() || sf == null || ef == null || upf == null) {
+                        errorMsg = "Please fill in all required fields."
+                        return@Button
+                    }
+                    if (sf > ef) {
+                        errorMsg = "Start floor must be <= end floor."
+                        return@Button
+                    }
+                    val requests = mutableListOf<CreateUnitRequest>()
+                    for (floor in sf..ef) {
+                        for (unitIdx in 1..upf) {
+                            val unitNumber = "$prefix$floor${unitIdx.toString().padStart(2, '0')}"
+                            requests.add(
+                                CreateUnitRequest(
+                                    unitNumber = unitNumber,
+                                    floor = floor,
+                                    bedrooms = bedrooms.toIntOrNull() ?: 0,
+                                    bathrooms = bathrooms.toIntOrNull() ?: 0,
+                                    rentAmount = rentAmount.toDoubleOrNull()
+                                )
+                            )
+                        }
+                    }
+                    saving = true
+                    errorMsg = null
+                    vm.createUnitsBulk(
+                        buildingId = buildingId,
+                        requests = requests,
+                        onSuccess = { saving = false; onSuccess() },
+                        onError = { saving = false; errorMsg = it }
+                    )
+                },
+                enabled = !saving,
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600)
+            ) {
+                Text(if (saving) "Creating..." else "Create Units")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { if (!saving) onDismiss() }) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

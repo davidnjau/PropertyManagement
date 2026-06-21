@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import com.buildagent.shared.api.BuildAgentClient
 import com.buildagent.shared.models.Building
 import com.buildagent.shared.models.CreateBuildingRequest
+import com.buildagent.shared.models.CreateUnitRequest
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -42,6 +43,22 @@ class PortfolioViewModel(private val client: BuildAgentClient) : ScreenModel {
                 onSuccess()
             } catch (e: Exception) {
                 onError(e.message ?: "Failed to create building.")
+            }
+        }
+    }
+
+    fun createUnitsBulk(
+        buildingId: String,
+        requests: List<CreateUnitRequest>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        screenModelScope.launch {
+            try {
+                requests.forEach { client.createUnit(buildingId, it) }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to create units.")
             }
         }
     }
