@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.tenancy
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.CreateTenantWithLeaseRequest
 import com.buildagent.shared.models.RentFrequency
+import com.buildagent.ui.components.BuildingUnitPicker
 import com.buildagent.ui.components.DatePickerField
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
@@ -53,13 +56,24 @@ fun TenantsScreen() {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
-                        elevation = CardDefaults.cardElevation(1.dp)
+                        colors = CardDefaults.cardColors(containerColor = White),
+                        border = BorderStroke(1.dp, Gray300),
+                        elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text(tenant.fullName, fontWeight = FontWeight.Medium)
-                                Text(tenant.email, fontSize = 13.sp, color = Gray500)
-                                tenant.phone?.let { Text(it, fontSize = 12.sp, color = Gray500) }
+                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                            Box(
+                                modifier = Modifier.width(4.dp).fillMaxHeight()
+                                    .background(Brand600)
+                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(tenant.fullName, fontWeight = FontWeight.Medium)
+                                    Text(tenant.email, fontSize = 13.sp, color = Gray500)
+                                    tenant.phone?.let { Text(it, fontSize = 12.sp, color = Gray500) }
+                                }
                             }
                         }
                     }
@@ -92,11 +106,12 @@ fun CreateTenantAndLeaseDialog(
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     // Lease fields
+    var selectedBuildingId by remember { mutableStateOf("") }
     var unitId by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
     var rentAmount by remember { mutableStateOf("") }
-    var bondAmount by remember { mutableStateOf("") }
+    var depositAmount by remember { mutableStateOf("") }
     var paymentDay by remember { mutableStateOf("1") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
@@ -142,13 +157,11 @@ fun CreateTenantAndLeaseDialog(
                 HorizontalDivider()
                 Text("Lease Details", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray500)
 
-                OutlinedTextField(
-                    value = unitId,
-                    onValueChange = { unitId = it },
-                    label = { Text("Unit ID *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                BuildingUnitPicker(
+                    selectedBuildingId = selectedBuildingId,
+                    selectedUnitId = unitId,
+                    onBuildingSelected = { id, _ -> selectedBuildingId = id; unitId = "" },
+                    onUnitSelected = { id, _ -> unitId = id }
                 )
                 DatePickerField(
                     value = startDate,
@@ -169,9 +182,9 @@ fun CreateTenantAndLeaseDialog(
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
-                    value = bondAmount,
-                    onValueChange = { bondAmount = it },
-                    label = { Text("Bond Amount *") },
+                    value = depositAmount,
+                    onValueChange = { depositAmount = it },
+                    label = { Text("Deposit Amount *") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
@@ -196,13 +209,13 @@ fun CreateTenantAndLeaseDialog(
             Button(
                 onClick = {
                     val rent = rentAmount.toDoubleOrNull()
-                    val bond = bondAmount.toDoubleOrNull()
+                    val bond = depositAmount.toDoubleOrNull()
                     val day = paymentDay.toIntOrNull()
                     when {
                         fullName.isBlank() || email.isBlank() -> errorMsg = "Full name and email are required."
-                        unitId.isBlank() || startDate.isBlank() -> errorMsg = "Unit ID and start date are required."
+                        unitId.isBlank() || startDate.isBlank() -> errorMsg = "Building, unit and start date are required."
                         rent == null || rent <= 0 -> errorMsg = "Enter a valid rent amount."
-                        bond == null || bond < 0 -> errorMsg = "Enter a valid bond amount."
+                        bond == null || bond < 0 -> errorMsg = "Enter a valid deposit amount."
                         day == null || day !in 1..28 -> errorMsg = "Payment day must be between 1 and 28."
                         else -> onSave(
                             CreateTenantWithLeaseRequest(

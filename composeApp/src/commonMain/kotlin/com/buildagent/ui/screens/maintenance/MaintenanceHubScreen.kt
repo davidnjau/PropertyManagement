@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.maintenance
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -19,6 +21,7 @@ import com.buildagent.shared.models.MaintenancePriority
 import com.buildagent.shared.models.MaintenanceRequest
 import com.buildagent.shared.models.MaintenanceStatus
 import com.buildagent.ui.components.*
+import com.buildagent.ui.components.BuildingUnitPicker
 import com.buildagent.ui.theme.*
 
 private val statusFilters = listOf("All", "REPORTED", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CLOSED")
@@ -91,6 +94,7 @@ fun CreateMaintenanceDialog(
 ) {
     val categories = MaintenanceCategory.entries.toList()
     val priorities = MaintenancePriority.entries.toList()
+    var selectedBuildingId by remember { mutableStateOf("") }
     var unitId by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -108,13 +112,11 @@ fun CreateMaintenanceDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
-                OutlinedTextField(
-                    value = unitId,
-                    onValueChange = { unitId = it },
-                    label = { Text("Unit ID *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                BuildingUnitPicker(
+                    selectedBuildingId = selectedBuildingId,
+                    selectedUnitId = unitId,
+                    onBuildingSelected = { id, _ -> selectedBuildingId = id; unitId = "" },
+                    onUnitSelected = { id, _ -> unitId = id }
                 )
                 OutlinedTextField(
                     value = title,
@@ -189,7 +191,7 @@ fun CreateMaintenanceDialog(
             Button(
                 onClick = {
                     if (unitId.isBlank() || title.isBlank() || description.isBlank()) {
-                        errorMsg = "Unit ID, title, and description are required."
+                        errorMsg = "Building and unit, title, and description are required."
                         return@Button
                     }
                     onSave(
@@ -221,10 +223,16 @@ fun MaintenanceCard(request: MaintenanceRequest) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = if (slaBreached) Danger100 else MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        colors = CardDefaults.cardColors(containerColor = if (slaBreached) Danger100 else White),
+        border = BorderStroke(1.dp, if (slaBreached) Danger100 else Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        Box(
+            modifier = Modifier.width(4.dp).fillMaxHeight()
+                .background(if (slaBreached) Danger600 else Gray300)
+        )
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -247,5 +255,6 @@ fun MaintenanceCard(request: MaintenanceRequest) {
                 Text("Contractor: $it", fontSize = 12.sp, color = Gray500)
             }
         }
+        } // end Row
     }
 }

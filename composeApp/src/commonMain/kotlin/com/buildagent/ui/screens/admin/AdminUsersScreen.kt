@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buildagent.shared.models.AdminUserResponse
@@ -23,6 +22,13 @@ import com.buildagent.shared.models.UserType
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
 import org.koin.compose.koinInject
+
+private fun generatePassword(): String {
+    val chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+    var result = ""
+    repeat(10) { result += chars[(chars.length * kotlin.random.Random.nextFloat()).toInt()] }
+    return result
+}
 
 @Composable
 fun AdminUsersScreen() {
@@ -119,7 +125,7 @@ private fun UserDetailView(user: AdminUserResponse, onBack: () -> Unit) {
                 color = Gray100,
                 modifier = Modifier.clickable { onBack() }
             ) {
-                Text("← Back", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                Text("< Back", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     fontSize = 13.sp, color = Brand600, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.width(12.dp))
@@ -355,7 +361,8 @@ fun AddAgentDialog(onDismiss: () -> Unit, onSave: (CreateUserRequest) -> Unit) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var idNumber by remember { mutableStateOf("") }
+    val generatedPassword = remember { generatePassword() }
     var selectedType by remember { mutableStateOf(UserType.AGENT) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -393,12 +400,11 @@ fun AddAgentDialog(onDismiss: () -> Unit, onSave: (CreateUserRequest) -> Unit) {
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password *") },
+                    value = idNumber,
+                    onValueChange = { idNumber = it },
+                    label = { Text("Identification Number (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 ExposedDropdownMenuBox(
@@ -426,13 +432,24 @@ fun AddAgentDialog(onDismiss: () -> Unit, onSave: (CreateUserRequest) -> Unit) {
                         }
                     }
                 }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Brand50
+                ) {
+                    Text(
+                        "Auto-generated password: $generatedPassword",
+                        modifier = Modifier.padding(12.dp),
+                        fontSize = 13.sp,
+                        color = Brand600
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
-                        errorMsg = "Full name, email and password are required."
+                    if (fullName.isBlank() || email.isBlank()) {
+                        errorMsg = "Full name and email are required."
                         return@Button
                     }
                     onSave(
@@ -440,8 +457,9 @@ fun AddAgentDialog(onDismiss: () -> Unit, onSave: (CreateUserRequest) -> Unit) {
                             userType = selectedType,
                             fullName = fullName.trim(),
                             email = email.trim(),
-                            password = password,
+                            password = generatedPassword,
                             phone = phone.trim().ifBlank { null }
+                            // idNumber = idNumber.trim().ifBlank { null }
                         )
                     )
                 },

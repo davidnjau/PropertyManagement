@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.payments
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import com.buildagent.shared.api.BuildAgentClient
+import com.buildagent.shared.models.Building
+import com.buildagent.shared.models.Lease
 import com.buildagent.shared.models.Payment
 import com.buildagent.shared.models.PaymentType
 import com.buildagent.shared.models.RecordPaymentRequest
@@ -86,15 +91,35 @@ fun RecordPaymentDialog(
     onDismiss: () -> Unit,
     onSave: (RecordPaymentRequest) -> Unit
 ) {
+    val client = koinInject<BuildAgentClient>()
     val paymentTypes = PaymentType.entries.toList()
-    var leaseId by remember { mutableStateOf("") }
+
+    var buildings by remember { mutableStateOf<List<Building>>(emptyList()) }
+    var allLeases by remember { mutableStateOf<List<Lease>>(emptyList()) }
+    var selectedBuildingId by remember { mutableStateOf("") }
+    var buildingExpanded by remember { mutableStateOf(false) }
+    var selectedLeaseId by remember { mutableStateOf("") }
+    var leaseExpanded by remember { mutableStateOf(false) }
+
     var amount by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(PaymentType.RENT) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var periodFrom by remember { mutableStateOf("") }
     var periodTo by remember { mutableStateOf("") }
+
+    // Payment method: "MPESA", "PAYPAL", "BANK"
+    var paymentMethod by remember { mutableStateOf("MPESA") }
     var referenceNo by remember { mutableStateOf("") }
+
     var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        buildings = try { client.getBuildings(limit = 100).data ?: emptyList() } catch (e: Exception) { emptyList() }
+        allLeases = try { client.getLeases(limit = 100).data ?: emptyList() } catch (e: Exception) { emptyList() }
+    }
+
+    val leasesForBuilding = if (selectedBuildingId.isBlank()) emptyList()
+        else allLeases.filter { it.unit?.building?.id == selectedBuildingId }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -104,14 +129,59 @@ fun RecordPaymentDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
-                OutlinedTextField(
-                    value = leaseId,
-                    onValueChange = { leaseId = it },
-                    label = { Text("Lease ID *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                )
+
+                // Building selector
+                ExposedDropdownMenuBox(expanded = buildingExpanded, onExpandedChange = { buildingExpanded = it }) {
+                    OutlinedTextField(
+                        value = buildings.firstOrNull { it.id == selectedBuildingId }?.let { it.name ?: it.address } ?: "Select Building",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Building *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = buildingExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                    )
+                    ExposedDropdownMenu(expanded = buildingExpanded, onDismissRequest = { buildingExpanded = false }) {
+                        if (buildings.isEmpty()) {
+                            DropdownMenuItem(text = { Text("No buildings available") }, onClick = {})
+                        } else {
+                            buildings.forEach { b ->
+                                DropdownMenuItem(
+                                    text = { Text(b.name ?: b.address) },
+                                    onClick = { selectedBuildingId = b.id; selectedLeaseId = ""; buildingExpanded = false }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Tenant/lease selector
+                if (selectedBuildingId.isNotBlank()) {
+                    ExposedDropdownMenuBox(expanded = leaseExpanded, onExpandedChange = { leaseExpanded = it }) {
+                        OutlinedTextField(
+                            value = leasesForBuilding.firstOrNull { it.id == selectedLeaseId }?.tenant?.fullName ?: "Select Tenant",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Tenant *") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = leaseExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                        )
+                        ExposedDropdownMenu(expanded = leaseExpanded, onDismissRequest = { leaseExpanded = false }) {
+                            if (leasesForBuilding.isEmpty()) {
+                                DropdownMenuItem(text = { Text("No active leases for this building") }, onClick = {})
+                            } else {
+                                leasesForBuilding.forEach { lease ->
+                                    DropdownMenuItem(
+                                        text = { Text(lease.tenant?.fullName ?: lease.id) },
+                                        onClick = { selectedLeaseId = lease.id; leaseExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it },
@@ -155,10 +225,28 @@ fun RecordPaymentDialog(
                     onValueChange = { periodTo = it },
                     label = "Period To *"
                 )
+
+                // Payment method chips
+                Text("Payment Method", fontSize = 13.sp, color = Gray700, fontWeight = FontWeight.Medium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("MPESA" to "M-Pesa", "PAYPAL" to "PayPal", "BANK" to "Bank Transfer").forEach { (key, label) ->
+                        FilterChip(
+                            selected = paymentMethod == key,
+                            onClick = { paymentMethod = key; referenceNo = "" },
+                            label = { Text(label, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                val refLabel = when (paymentMethod) {
+                    "MPESA" -> "M-Pesa Reference"
+                    "PAYPAL" -> "Transaction ID"
+                    else -> "Transfer Reference"
+                }
                 OutlinedTextField(
                     value = referenceNo,
                     onValueChange = { referenceNo = it },
-                    label = { Text("Reference No (optional)") },
+                    label = { Text("$refLabel (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
@@ -169,13 +257,13 @@ fun RecordPaymentDialog(
             Button(
                 onClick = {
                     val parsedAmount = amount.toDoubleOrNull()
-                    if (leaseId.isBlank() || parsedAmount == null || periodFrom.isBlank() || periodTo.isBlank()) {
-                        errorMsg = "Lease ID, amount, and period dates are required."
+                    if (selectedLeaseId.isBlank() || parsedAmount == null || periodFrom.isBlank() || periodTo.isBlank()) {
+                        errorMsg = "Building, tenant, amount, and period dates are required."
                         return@Button
                     }
                     onSave(
                         RecordPaymentRequest(
-                            leaseId = leaseId.trim(),
+                            leaseId = selectedLeaseId,
                             amount = parsedAmount,
                             paymentType = selectedType,
                             periodFrom = periodFrom.trim(),
@@ -197,28 +285,34 @@ fun RecordPaymentDialog(
 
 @Composable
 fun PaymentRow(payment: Payment) {
+    val isOverdue = payment.status.name == "OVERDUE"
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (payment.status.name == "OVERDUE") Danger100 else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(1.dp)
+        colors = CardDefaults.cardColors(containerColor = if (isOverdue) Danger100 else White),
+        border = BorderStroke(1.dp, if (isOverdue) Danger100 else Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(payment.lease?.tenant?.fullName ?: "—", fontWeight = FontWeight.Medium)
-                Text(payment.paymentType.name, fontSize = 12.sp, color = Gray500)
-                Text("${payment.periodFrom} — ${payment.periodTo}", fontSize = 12.sp, color = Gray500)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("A$${payment.amount.fmt2dp()}", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(4.dp))
-                StatusBadge(payment.status.name, paymentStatusBadge)
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(
+                modifier = Modifier.width(4.dp).fillMaxHeight()
+                    .background(if (isOverdue) Danger600 else Gray300)
+            )
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(payment.lease?.tenant?.fullName ?: "—", fontWeight = FontWeight.Medium)
+                    Text(payment.paymentType.name, fontSize = 12.sp, color = Gray500)
+                    Text("${payment.periodFrom} — ${payment.periodTo}", fontSize = 12.sp, color = Gray500)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("A$${payment.amount.fmt2dp()}", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    StatusBadge(payment.status.name, paymentStatusBadge)
+                }
             }
         }
     }

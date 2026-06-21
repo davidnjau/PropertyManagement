@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.tenancy
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,8 +15,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.CreateLeaseRequest
+import com.buildagent.shared.models.LeaseStatus
 import com.buildagent.shared.models.RentFrequency
 import com.buildagent.ui.components.*
+import com.buildagent.ui.components.BuildingUnitPicker
 import com.buildagent.ui.utils.fmt0dp
 import com.buildagent.ui.theme.*
 
@@ -46,23 +50,32 @@ fun LeasesScreen() {
         if (loading) { LoadingContent() } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(leases) { lease ->
+                    val isActive = (lease.computedStatus ?: lease.status) == LeaseStatus.ACTIVE
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
-                        elevation = CardDefaults.cardElevation(1.dp)
+                        colors = CardDefaults.cardColors(containerColor = White),
+                        border = BorderStroke(1.dp, Gray300),
+                        elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(lease.tenant?.fullName ?: "—", fontWeight = FontWeight.Medium)
-                                Text("A$${lease.rentAmount.fmt0dp()}/mo", fontSize = 13.sp, color = Gray500)
-                                Text("${lease.startDate} — ${lease.endDate ?: "Periodic"}", fontSize = 12.sp, color = Gray500)
+                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                            Box(
+                                modifier = Modifier.width(4.dp).fillMaxHeight()
+                                    .background(if (isActive) Brand600 else Gray300)
+                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(lease.tenant?.fullName ?: "—", fontWeight = FontWeight.Medium)
+                                    Text("A$${lease.rentAmount.fmt0dp()}/mo", fontSize = 13.sp, color = Gray500)
+                                    Text("${lease.startDate} — ${lease.endDate ?: "Periodic"}", fontSize = 12.sp, color = Gray500)
+                                }
+                                val displayStatus = (lease.computedStatus ?: lease.status).name
+                                StatusBadge(displayStatus, leaseStatusBadge)
                             }
-                            val displayStatus = (lease.computedStatus ?: lease.status).name
-                            StatusBadge(displayStatus, leaseStatusBadge)
                         }
                     }
                 }
@@ -100,13 +113,14 @@ fun CreateLeaseDialog(
     onDismiss: () -> Unit,
     onSave: (CreateLeaseRequest) -> Unit
 ) {
+    var selectedBuildingId by remember { mutableStateOf("") }
     var unitId by remember { mutableStateOf("") }
     var selectedTenantId by remember { mutableStateOf(preselectedTenantId ?: tenants.firstOrNull()?.first ?: "") }
     var tenantMenuExpanded by remember { mutableStateOf(false) }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
     var rentAmount by remember { mutableStateOf("") }
-    var bondAmount by remember { mutableStateOf("") }
+    var depositAmount by remember { mutableStateOf("") }
     var paymentDay by remember { mutableStateOf("1") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
@@ -158,13 +172,11 @@ fun CreateLeaseDialog(
                     )
                 }
 
-                OutlinedTextField(
-                    value = unitId,
-                    onValueChange = { unitId = it },
-                    label = { Text("Unit ID *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                BuildingUnitPicker(
+                    selectedBuildingId = selectedBuildingId,
+                    selectedUnitId = unitId,
+                    onBuildingSelected = { id, _ -> selectedBuildingId = id; unitId = "" },
+                    onUnitSelected = { id, _ -> unitId = id }
                 )
                 DatePickerField(
                     value = startDate,
@@ -185,9 +197,9 @@ fun CreateLeaseDialog(
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
                 OutlinedTextField(
-                    value = bondAmount,
-                    onValueChange = { bondAmount = it },
-                    label = { Text("Bond Amount *") },
+                    value = depositAmount,
+                    onValueChange = { depositAmount = it },
+                    label = { Text("Deposit Amount *") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
@@ -206,10 +218,10 @@ fun CreateLeaseDialog(
             Button(
                 onClick = {
                     val rent = rentAmount.toDoubleOrNull()
-                    val bond = bondAmount.toDoubleOrNull()
+                    val deposit = depositAmount.toDoubleOrNull()
                     val day = paymentDay.toIntOrNull() ?: 1
-                    if (selectedTenantId.isBlank() || unitId.isBlank() || startDate.isBlank() || rent == null || bond == null) {
-                        errorMsg = "Tenant, unit, start date, rent and bond are required."
+                    if (selectedTenantId.isBlank() || unitId.isBlank() || startDate.isBlank() || rent == null || deposit == null) {
+                        errorMsg = "Tenant, unit, start date, rent and deposit are required."
                         return@Button
                     }
                     onSave(
@@ -219,7 +231,7 @@ fun CreateLeaseDialog(
                             startDate = startDate.trim(),
                             endDate = endDate.trim().ifBlank { null },
                             rentAmount = rent,
-                            bondAmount = bond,
+                            bondAmount = deposit,
                             paymentDay = day
                         )
                     )

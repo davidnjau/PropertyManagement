@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -156,24 +157,46 @@ private fun MpesaConfigSection(
     saving: Boolean,
     onSave: (UpdateMpesaConfigRequest) -> Unit
 ) {
+    var mpesaMode by remember { mutableStateOf("PAYBILL") }
     var businessNo by remember(initial) { mutableStateOf(initial?.businessNo ?: "") }
     var accountNo by remember(initial) { mutableStateOf(initial?.accountNo ?: "") }
     var instructions by remember(initial) { mutableStateOf(initial?.instructions ?: "") }
 
     SectionCard("M-Pesa Configuration", "📱") {
-        OutlinedTextField(value = businessNo, onValueChange = { businessNo = it },
-            label = { Text("Business No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
-        OutlinedTextField(value = accountNo, onValueChange = { accountNo = it },
-            label = { Text("Account No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = mpesaMode == "PAYBILL",
+                onClick = { mpesaMode = "PAYBILL" },
+                label = { Text("Paybill", fontSize = 12.sp) }
+            )
+            FilterChip(
+                selected = mpesaMode == "TILL",
+                onClick = { mpesaMode = "TILL" },
+                label = { Text("Till Number", fontSize = 12.sp) }
+            )
+        }
+
+        if (mpesaMode == "PAYBILL") {
+            OutlinedTextField(value = businessNo, onValueChange = { businessNo = it },
+                label = { Text("Business No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+            OutlinedTextField(value = accountNo, onValueChange = { accountNo = it },
+                label = { Text("Account No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        } else {
+            OutlinedTextField(value = businessNo, onValueChange = { businessNo = it },
+                label = { Text("Till Number *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        }
+
         OutlinedTextField(value = instructions, onValueChange = { instructions = it },
             label = { Text("Instructions (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
             colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
         Button(
             onClick = {
-                if (businessNo.isNotBlank() && accountNo.isNotBlank())
-                    onSave(UpdateMpesaConfigRequest(businessNo.trim(), accountNo.trim(), instructions.trim().ifBlank { null }))
+                val acctNo = if (mpesaMode == "TILL") "" else accountNo.trim()
+                if (businessNo.isNotBlank() && (mpesaMode == "TILL" || accountNo.isNotBlank()))
+                    onSave(UpdateMpesaConfigRequest(businessNo.trim(), acctNo, instructions.trim().ifBlank { null }))
             },
             enabled = !saving,
             colors = ButtonDefaults.buttonColors(containerColor = Brand600),
@@ -212,6 +235,8 @@ private fun PaypalConfigSection(
 
 @Composable
 private fun BanksSection(banks: List<BankConfig>, onToggle: (String, Boolean) -> Unit) {
+    val bankInstructions = remember { mutableStateMapOf<String, String>() }
+
     SectionCard("Bank Accounts", "🏦", accentColor = Success600) {
         banks.forEachIndexed { i, bank ->
             if (i > 0) HorizontalDivider(color = Gray100)
@@ -229,6 +254,17 @@ private fun BanksSection(banks: List<BankConfig>, onToggle: (String, Boolean) ->
                     checked = bank.enabled,
                     onCheckedChange = { onToggle(bank.bankId, it) },
                     colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = Brand600)
+                )
+            }
+            if (bank.enabled) {
+                OutlinedTextField(
+                    value = bankInstructions[bank.bankId] ?: "",
+                    onValueChange = { bankInstructions[bank.bankId] = it },
+                    label = { Text("Payment Instructions (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
             }
         }

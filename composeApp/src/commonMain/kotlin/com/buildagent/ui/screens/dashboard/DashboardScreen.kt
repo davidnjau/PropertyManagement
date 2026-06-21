@@ -1,7 +1,9 @@
 package com.buildagent.ui.screens.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,9 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.ui.components.*
-import com.buildagent.ui.theme.Gray100
-import com.buildagent.ui.theme.Gray500
-import com.buildagent.ui.theme.Success600
+import com.buildagent.ui.theme.*
 
 @Composable
 fun DashboardScreen() {
@@ -43,7 +43,13 @@ fun DashboardScreen() {
                     StatCard("SLA Breached",          d.slaBreached.toString(),     Modifier.weight(1f), alert = d.slaBreached > 0)
                 }
                 Spacer(Modifier.height(20.dp))
-                Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(1.dp)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = White),
+                    border = BorderStroke(1.dp, Gray300),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Unit Occupancy", fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(12.dp))

@@ -47,6 +47,16 @@ fun AdminAlertsScreen() {
     var message by remember { mutableStateOf("") }
     var formError by remember { mutableStateOf<String?>(null) }
 
+    // Message type
+    val messageTypes = listOf("Custom", "Rent Due Reminder", "Overdue Balance", "Lease Expiry Notice", "General Notice")
+    var selectedMessageType by remember { mutableStateOf("Custom") }
+    var messageTypeExpanded by remember { mutableStateOf(false) }
+    val rentDueFilter = when (selectedMessageType) {
+        "Rent Due Reminder" -> "DUE"
+        "Overdue Balance" -> "OVERDUE"
+        else -> null
+    }
+
     Row(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         // Left: Compose form
         Card(
@@ -108,6 +118,41 @@ fun AdminAlertsScreen() {
                         }
                     }
 
+                    ExposedDropdownMenuBox(
+                        expanded = messageTypeExpanded,
+                        onExpandedChange = { messageTypeExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedMessageType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Message Type") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = messageTypeExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
+                        )
+                        ExposedDropdownMenu(expanded = messageTypeExpanded, onDismissRequest = { messageTypeExpanded = false }) {
+                            messageTypes.forEach { mt ->
+                                DropdownMenuItem(
+                                    text = { Text(mt) },
+                                    onClick = {
+                                        selectedMessageType = mt
+                                        messageTypeExpanded = false
+                                        if (mt != "Custom") {
+                                            subject = when (mt) {
+                                                "Rent Due Reminder" -> "Rent Due Reminder"
+                                                "Overdue Balance" -> "Overdue Balance Notice"
+                                                "Lease Expiry Notice" -> "Your Lease is Expiring Soon"
+                                                "General Notice" -> "Important Notice"
+                                                else -> subject
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = subject,
                         onValueChange = { subject = it },
@@ -132,7 +177,7 @@ fun AdminAlertsScreen() {
                             if (subject.isBlank() || message.isBlank()) { formError = "Subject and message are required."; return@Button }
                             if (selectedChannels.isEmpty()) { formError = "Select at least one channel."; return@Button }
                             vm.createAlert(
-                                CreateAlertRequest(targetType = targetType, channels = selectedChannels.toList(), subject = subject.trim(), message = message.trim()),
+                                CreateAlertRequest(targetType = targetType, channels = selectedChannels.toList(), subject = subject.trim(), message = message.trim(), rentDueFilter = rentDueFilter),
                                 onSuccess = { subject = ""; message = "" }
                             )
                         },

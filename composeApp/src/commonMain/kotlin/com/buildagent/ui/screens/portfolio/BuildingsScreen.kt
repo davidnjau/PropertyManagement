@@ -117,7 +117,7 @@ private fun BuildingDetailView(
                 color = Gray100,
                 modifier = Modifier.clickable { onBack() }
             ) {
-                Text("← Back", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                Text("< Back", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     fontSize = 13.sp, color = Brand600, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.width(12.dp))
