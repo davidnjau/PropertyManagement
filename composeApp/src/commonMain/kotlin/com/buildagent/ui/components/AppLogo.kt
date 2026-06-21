@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.buildagent.ui.theme.*
 
 /**
- * PropVault logo mark — gradient tile with a 2×2 grid of rounded squares
+ * Legacy Real Estate Agency logo mark — gradient tile with a 2×2 grid of rounded squares
  * representing a portfolio of managed properties.
  */
 @Composable
@@ -47,11 +47,11 @@ fun AppLogoMark(size: Dp = 40.dp) {
     }
 }
 
-/** Full lockup: logo mark + "PropVault" wordmark side by side. */
+/** Full lockup: logo mark + "Legacy Real Estate Agency" wordmark side by side. */
 @Composable
 fun AppLogoLockup(
     logoSize: Dp = 40.dp,
-    nameSize: TextUnit = 18.sp,
+    nameSize: TextUnit = 13.sp,
     subtitleSize: TextUnit = 10.sp,
     subtitle: String = "Property Management"
 ) {
@@ -60,11 +60,11 @@ fun AppLogoLockup(
         Spacer(Modifier.width(10.dp))
         Column {
             Text(
-                text = "PropVault",
+                text = "Legacy Real Estate Agency",
                 color = White,
                 fontSize = nameSize,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.3).sp
+                letterSpacing = (-0.2).sp
             )
             if (subtitle.isNotEmpty()) {
                 Text(

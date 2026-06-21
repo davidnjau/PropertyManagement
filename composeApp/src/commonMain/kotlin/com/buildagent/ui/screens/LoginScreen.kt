@@ -103,12 +103,13 @@ class LoginScreen : Screen {
 
                         // Brand name with gradient
                         Text(
-                            text = "PropVault",
+                            text = "Legacy Real Estate Agency",
                             style = TextStyle(
                                 brush = brandGradient,
-                                fontSize = 30.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold
-                            )
+                            ),
+                            textAlign = TextAlign.Center
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
