@@ -24,6 +24,7 @@ import com.buildagent.ui.screens.main.MainScreen
 import com.buildagent.ui.screens.tenant.TenantMainScreen
 import com.buildagent.ui.state.AuthState
 import com.buildagent.ui.state.LocalAuthState
+import com.buildagent.ui.components.AppLogoMark
 import com.buildagent.ui.state.TokenStore
 import com.buildagent.ui.theme.*
 import kotlinx.coroutines.launch
@@ -97,19 +98,12 @@ class LoginScreen : Screen {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // Logo mark
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Brand100, RoundedCornerShape(14.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⬡", fontSize = 24.sp)
-                        }
+                        AppLogoMark(size = 56.dp)
                         Spacer(Modifier.height(16.dp))
 
                         // Brand name with gradient
                         Text(
-                            text = "BuildAgent",
+                            text = "PropVault",
                             style = TextStyle(
                                 brush = brandGradient,
                                 fontSize = 30.sp,

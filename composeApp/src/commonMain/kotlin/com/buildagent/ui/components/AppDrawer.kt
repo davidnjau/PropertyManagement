@@ -3,9 +3,7 @@ package com.buildagent.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +40,7 @@ fun AppDrawer(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     roles: List<String> = emptyList(),
+    onSignOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -49,45 +48,53 @@ fun AppDrawer(
             .width(240.dp)
             .fillMaxHeight()
             .background(Sidebar)
-            .verticalScroll(rememberScrollState())
             .padding(12.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)) {
-            Text(
-                text = "BuildAgent",
-                color = White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Property Management",
-                color = SidebarLabel,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp
-            )
-        }
-        Spacer(Modifier.height(8.dp))
+        // Scrollable nav content
+        Column(modifier = Modifier.weight(1f)) {
+            // Logo lockup
+            Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp)) {
+                AppLogoLockup(logoSize = 36.dp, nameSize = 17.sp, subtitleSize = 10.sp)
+            }
 
-        navItems.forEach { item ->
-            DrawerNavRow(item, selectedIndex, onSelect)
-        }
-
-        if ("ADMIN" in roles || "AGENT" in roles) {
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = SidebarDivider, thickness = 1.dp)
             Spacer(Modifier.height(8.dp))
-            Text(
-                text = "ADMIN",
-                color = SidebarLabel,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-            )
-            adminNavItems.forEach { item ->
+
+            navItems.forEach { item ->
                 DrawerNavRow(item, selectedIndex, onSelect)
             }
+
+            if ("ADMIN" in roles || "AGENT" in roles) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = SidebarDivider, thickness = 1.dp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "ADMIN",
+                    color = SidebarLabel,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+                adminNavItems.forEach { item ->
+                    DrawerNavRow(item, selectedIndex, onSelect)
+                }
+            }
+        }
+
+        // Sign out pinned at bottom
+        HorizontalDivider(color = SidebarDivider, thickness = 1.dp)
+        Spacer(Modifier.height(4.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { onSignOut() }
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text("🚪", fontSize = 16.sp)
+            Spacer(Modifier.width(10.dp))
+            Text("Sign Out", color = SidebarText, fontSize = 14.sp)
         }
     }
 }

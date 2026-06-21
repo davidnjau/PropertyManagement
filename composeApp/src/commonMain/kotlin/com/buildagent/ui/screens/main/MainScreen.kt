@@ -16,7 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import com.buildagent.ui.components.AppDrawer
+import com.buildagent.ui.screens.LoginScreen
 import com.buildagent.ui.screens.admin.AdminAlertsScreen
 import com.buildagent.ui.screens.admin.AdminDocumentsScreen
 import com.buildagent.ui.screens.admin.AdminLeaseExtensionsScreen
@@ -35,6 +38,7 @@ import com.buildagent.ui.theme.Sidebar
 class MainScreen : Screen {
     @Composable
     override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
         val authState = LocalAuthState.current
         val roles = (authState.value as? AuthState.Authenticated)?.roles ?: listOf("AGENT")
         var selectedIndex by remember { mutableIntStateOf(0) }
@@ -49,7 +53,11 @@ class MainScreen : Screen {
                 AppDrawer(
                     selectedIndex = selectedIndex,
                     onSelect = { selectedIndex = it },
-                    roles = roles
+                    roles = roles,
+                    onSignOut = {
+                        authState.value = AuthState.Unauthenticated
+                        navigator.replace(LoginScreen())
+                    }
                 )
             }
 

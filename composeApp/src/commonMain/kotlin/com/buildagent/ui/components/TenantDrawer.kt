@@ -38,18 +38,8 @@ fun TenantDrawer(
             .background(Sidebar)
             .padding(12.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)) {
-            Text(
-                text = "BuildAgent",
-                color = White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = userName,
-                color = SidebarText,
-                fontSize = 12.sp
-            )
+        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp)) {
+            AppLogoLockup(logoSize = 36.dp, nameSize = 17.sp, subtitleSize = 10.sp, subtitle = userName)
         }
         Spacer(Modifier.height(8.dp))
 
