@@ -2,10 +2,13 @@ package com.buildagent.ui.screens.portfolio
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,9 +20,12 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import com.buildagent.shared.models.Building
 import com.buildagent.shared.models.BuildingType
+import com.buildagent.shared.models.BuildingUnit
 import com.buildagent.shared.models.CreateBuildingRequest
+import com.buildagent.shared.models.UnitStatus
 import com.buildagent.ui.components.LoadingContent
 import com.buildagent.ui.theme.*
+import com.buildagent.ui.utils.fmt2dp
 
 @Composable
 fun BuildingsScreen() {
@@ -28,9 +34,18 @@ fun BuildingsScreen() {
     val loading by vm.loading.collectAsState()
     val error by vm.error.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
+    var selectedBuilding by remember { mutableStateOf<Building?>(null) }
+
+    if (selectedBuilding != null) {
+        BuildingDetailView(
+            building = selectedBuilding!!,
+            vm = vm,
+            onBack = { selectedBuilding = null }
+        )
+        return
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -58,7 +73,9 @@ fun BuildingsScreen() {
             error != null -> Text("Error: $error", color = Danger600)
             buildings.isEmpty() -> EmptyPortfolioState()
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(buildings) { building -> BuildingCard(building) }
+                items(buildings) { building ->
+                    BuildingCard(building, onClick = { selectedBuilding = building })
+                }
             }
         }
     }
@@ -78,6 +95,183 @@ fun BuildingsScreen() {
 }
 
 @Composable
+private fun BuildingDetailView(
+    building: Building,
+    vm: PortfolioViewModel,
+    onBack: () -> Unit
+) {
+    var units by remember { mutableStateOf<List<BuildingUnit>>(emptyList()) }
+    var unitsLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(building.id) {
+        unitsLoading = true
+        units = vm.getUnits(building.id) ?: emptyList()
+        unitsLoading = false
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        // Header with back
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Gray100,
+                modifier = Modifier.clickable { onBack() }
+            ) {
+                Text("← Back", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 13.sp, color = Brand600, fontWeight = FontWeight.Medium)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(building.name ?: building.address, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Gray900)
+                Text("${building.suburb}, ${building.state} ${building.postcode}", fontSize = 13.sp, color = Gray500)
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            // Building info card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = White),
+                border = BorderStroke(1.dp, Gray300),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    Box(
+                        modifier = Modifier.width(4.dp).fillMaxHeight()
+                            .background(Brush.verticalGradient(listOf(Brand600, Cyan500)))
+                    )
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                        Text("Building Details", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Gray900)
+                        Spacer(Modifier.height(12.dp))
+                        DetailRow("Address", building.address)
+                        DetailRow("Suburb", building.suburb)
+                        DetailRow("State", building.state)
+                        DetailRow("Postcode", building.postcode)
+                        DetailRow("Type", building.buildingType.name)
+                        building.yearBuilt?.let { DetailRow("Year Built", it.toString()) }
+                        building.client?.let {
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider(color = Gray100)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Owner", fontSize = 11.sp, color = Gray500, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(it.fullName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
+                            Text(it.email, fontSize = 12.sp, color = Gray500)
+                        }
+                        building.notes?.let {
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider(color = Gray100)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Notes", fontSize = 11.sp, color = Gray500, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(it, fontSize = 13.sp, color = Gray700)
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // Units section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Units", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Gray900)
+                if (!unitsLoading) {
+                    val occupied = units.count { it.status == UnitStatus.OCCUPIED }
+                    Text("$occupied/${units.size} occupied", fontSize = 13.sp, color = Gray500)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+
+            if (unitsLoading) {
+                LoadingContent()
+            } else if (units.isEmpty()) {
+                Box(
+                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No units registered.", fontSize = 13.sp, color = Gray500)
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    units.forEach { unit -> UnitCard(unit) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnitCard(unit: BuildingUnit) {
+    val isOccupied = unit.status == UnitStatus.OCCUPIED
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        border = BorderStroke(1.dp, Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(
+                modifier = Modifier.width(4.dp).fillMaxHeight()
+                    .background(if (isOccupied) Brand600 else Gray300)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(40.dp)
+                        .background(if (isOccupied) Brand50 else Gray100, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(if (isOccupied) "🏠" else "🔑", fontSize = 18.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Unit ${unit.unitNumber}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
+                    val specs = buildList {
+                        if (unit.bedrooms > 0) add("${unit.bedrooms}bd")
+                        if (unit.bathrooms > 0) add("${unit.bathrooms}ba")
+                        unit.areaSqm?.let { add("${it.toInt()}m²") }
+                    }.joinToString(" · ")
+                    if (specs.isNotEmpty()) Text(specs, fontSize = 12.sp, color = Gray500)
+                    unit.rentAmount?.let {
+                        Text("A$${it.fmt2dp()} / ${unit.rentFrequency.name.lowercase()}", fontSize = 12.sp, color = Gray500)
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isOccupied) Brand100 else Gray100
+                ) {
+                    Text(
+                        text = unit.status.name,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isOccupied) Brand600 else Gray700
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(label, fontSize = 12.sp, color = Gray500, modifier = Modifier.width(100.dp))
+        Text(value, fontSize = 13.sp, color = Gray900, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
 private fun EmptyPortfolioState() {
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -91,16 +285,15 @@ private fun EmptyPortfolioState() {
 }
 
 @Composable
-fun BuildingCard(building: Building) {
+fun BuildingCard(building: Building, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         border = BorderStroke(1.dp, Gray300),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            // Left accent stripe
             Box(
                 modifier = Modifier
                     .width(4.dp)
@@ -111,7 +304,6 @@ fun BuildingCard(building: Building) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Building icon box
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -148,6 +340,8 @@ fun BuildingCard(building: Building) {
                         }
                     }
                 }
+
+                Text("›", fontSize = 20.sp, color = Gray300)
             }
         }
     }

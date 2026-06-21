@@ -2,6 +2,7 @@ package com.buildagent.ui.screens.admin
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,6 +31,15 @@ fun AdminUsersScreen() {
     val loading by vm.loading.collectAsState()
     val error by vm.error.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
+    var selectedUser by remember { mutableStateOf<AdminUserResponse?>(null) }
+
+    if (selectedUser != null) {
+        UserDetailView(
+            user = selectedUser!!,
+            onBack = { selectedUser = null }
+        )
+        return
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Row(
@@ -73,7 +83,7 @@ fun AdminUsersScreen() {
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(users) { user -> TeamMemberCard(user) }
+                items(users) { user -> TeamMemberCard(user, onClick = { selectedUser = user }) }
             }
         }
     }
@@ -93,7 +103,150 @@ fun AdminUsersScreen() {
 }
 
 @Composable
-fun TeamMemberCard(user: AdminUserResponse) {
+private fun UserDetailView(user: AdminUserResponse, onBack: () -> Unit) {
+    val initials = user.fullName
+        .split(" ")
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+    val isAdmin = "ADMIN" in user.roles || "AGENCY" in user.roles
+    val isAgent = "AGENT" in user.roles
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        // Header with back
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Gray100,
+                modifier = Modifier.clickable { onBack() }
+            ) {
+                Text("← Back", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 13.sp, color = Brand600, fontWeight = FontWeight.Medium)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text("Member Details", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Gray900)
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Avatar + name hero
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = White),
+            border = BorderStroke(1.dp, Gray300),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                Box(
+                    modifier = Modifier.width(4.dp).fillMaxHeight()
+                        .background(
+                            Brush.verticalGradient(
+                                if (isAdmin) listOf(Brand600, Cyan500) else listOf(Gray300, Gray300)
+                            )
+                        )
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(
+                                Brush.linearGradient(
+                                    if (isAdmin) listOf(Brand600, Brand700)
+                                    else if (isAgent) listOf(Cyan500, Brand600)
+                                    else listOf(Gray500, Gray700)
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(initials, color = White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(user.fullName, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Gray900)
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            user.roles.forEach { role ->
+                                val adminRole = role == "ADMIN" || role == "AGENCY"
+                                val agentRole = role == "AGENT"
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = when {
+                                        adminRole -> Brand100
+                                        agentRole -> Cyan100
+                                        else -> Gray100
+                                    }
+                                ) {
+                                    Text(
+                                        text = role,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = when {
+                                            adminRole -> Brand600
+                                            agentRole -> Cyan500
+                                            else -> Gray700
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // Status dot
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (user.isActive) Success100 else Gray100
+                    ) {
+                        Text(
+                            text = if (user.isActive) "● Active" else "● Inactive",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (user.isActive) Success600 else Gray500
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Contact details card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = White),
+            border = BorderStroke(1.dp, Gray300),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Contact", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
+                Spacer(Modifier.height(12.dp))
+                UserDetailRow(label = "Email", value = user.email)
+                user.phone?.let { UserDetailRow(label = "Phone", value = it) }
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(color = Gray100)
+                Spacer(Modifier.height(8.dp))
+                UserDetailRow(label = "User Type", value = user.userType)
+                UserDetailRow(label = "Member Since", value = user.createdAt.take(10))
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserDetailRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(label, fontSize = 12.sp, color = Gray500, modifier = Modifier.width(110.dp))
+        Text(value, fontSize = 13.sp, color = Gray900, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+fun TeamMemberCard(user: AdminUserResponse, onClick: () -> Unit = {}) {
     val initials = user.fullName
         .split(" ")
         .take(2)
@@ -102,7 +255,7 @@ fun TeamMemberCard(user: AdminUserResponse) {
     val isAgent = "AGENT" in user.roles
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         border = BorderStroke(1.dp, Gray300),
@@ -157,35 +310,38 @@ fun TeamMemberCard(user: AdminUserResponse) {
                     }
                 }
 
-                // Role badges
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    user.roles.forEach { role ->
-                        val adminRole = role == "ADMIN" || role == "AGENCY"
-                        val agentRole = role == "AGENT"
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = when {
-                                adminRole -> Brand100
-                                agentRole -> Cyan100
-                                else -> Gray100
-                            }
-                        ) {
-                            Text(
-                                text = role,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
+                // Role badges + chevron
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        user.roles.forEach { role ->
+                            val adminRole = role == "ADMIN" || role == "AGENCY"
+                            val agentRole = role == "AGENT"
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
                                 color = when {
-                                    adminRole -> Brand600
-                                    agentRole -> Cyan500
-                                    else -> Gray700
+                                    adminRole -> Brand100
+                                    agentRole -> Cyan100
+                                    else -> Gray100
                                 }
-                            )
+                            ) {
+                                Text(
+                                    text = role,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = when {
+                                        adminRole -> Brand600
+                                        agentRole -> Cyan500
+                                        else -> Gray700
+                                    }
+                                )
+                            }
                         }
                     }
+                    Text("›", fontSize = 20.sp, color = Gray300)
                 }
             }
         }
