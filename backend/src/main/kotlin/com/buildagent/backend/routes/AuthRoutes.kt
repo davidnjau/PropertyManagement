@@ -3,8 +3,10 @@ package com.buildagent.backend.routes
 import com.buildagent.backend.auth.AgentPrincipal
 import com.buildagent.backend.services.AuthService
 import com.buildagent.shared.models.ApiResponse
+import com.buildagent.shared.models.ForgotPasswordRequest
 import com.buildagent.shared.models.LoginRequest
 import com.buildagent.shared.models.RegisterRequest
+import com.buildagent.shared.models.VerifyOtpRequest
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -36,6 +38,18 @@ fun Route.authRoutes(service: AuthService) {
             val req = call.receive<RegisterRequest>()
             val result = service.register(req)
             call.respond(HttpStatusCode.Created, ApiResponse(result))
+        }
+
+        post("/forgot-password") {
+            val req = call.receive<ForgotPasswordRequest>()
+            service.forgotPassword(req.email)
+            call.respond(ApiResponse<Unit>(message = "OTP sent"))
+        }
+
+        post("/verify-otp") {
+            val req = call.receive<VerifyOtpRequest>()
+            service.verifyOtp(req.email, req.otp)
+            call.respond(ApiResponse<Unit>(message = "OTP verified"))
         }
 
         authenticate("local-auth") {

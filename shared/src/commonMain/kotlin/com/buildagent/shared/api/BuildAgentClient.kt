@@ -196,6 +196,18 @@ class BuildAgentClient(
             setBody(request)
         }.body()
 
+    suspend fun forgotPassword(email: String): ApiResponse<Unit> =
+        http.post(url("/api/v1/auth/forgot-password")) {
+            contentType(ContentType.Application.Json)
+            setBody(ForgotPasswordRequest(email))
+        }.body()
+
+    suspend fun verifyOtp(email: String, otp: String): ApiResponse<Unit> =
+        http.post(url("/api/v1/auth/verify-otp")) {
+            contentType(ContentType.Application.Json)
+            setBody(VerifyOtpRequest(email, otp))
+        }.body()
+
     // ── Admin Users ───────────────────────────────────────────────────────────
 
     suspend fun getAdminUsers(): ApiResponse<List<AdminUserResponse>> =

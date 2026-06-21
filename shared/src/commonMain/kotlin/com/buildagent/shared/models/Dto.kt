@@ -19,6 +19,12 @@ data class RegisterRequest(
 data class LoginRequest(val email: String, val password: String, val role: String? = null)
 
 @Serializable
+data class ForgotPasswordRequest(val email: String)
+
+@Serializable
+data class VerifyOtpRequest(val email: String, val otp: String)
+
+@Serializable
 data class AuthResponse(val token: String, val user: AuthUser)
 
 @Serializable

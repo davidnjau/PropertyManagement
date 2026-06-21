@@ -21,8 +21,31 @@ import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import java.util.Base64
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
+private data class OtpEntry(val otp: String, val expiresAt: Long)
 
 class AuthService(private val jwtService: LocalJwtService) {
+
+    private val otpStore = ConcurrentHashMap<String, OtpEntry>()
+
+    fun forgotPassword(email: String) {
+        val userExists = org.jetbrains.exposed.sql.transactions.transaction {
+            UsersTable.selectAll().where { UsersTable.email eq email }.firstOrNull() != null
+        }
+        require(userExists) { "Email not found" }
+        val otp = (100000..999999).random().toString()
+        otpStore[email] = OtpEntry(otp, System.currentTimeMillis() + 10 * 60 * 1000)
+        // In production this would send via email/SMS. Log for development.
+        println("[AuthService] OTP for $email: $otp")
+    }
+
+    fun verifyOtp(email: String, otp: String) {
+        val entry = otpStore[email] ?: throw IllegalArgumentException("No OTP requested for this email")
+        require(System.currentTimeMillis() < entry.expiresAt) { "OTP has expired" }
+        require(otp == entry.otp) { "Invalid OTP" }
+        otpStore.remove(email)
+    }
 
     suspend fun register(req: RegisterRequest): AuthResponse = dbQuery {
         // Validate required fields per user type
