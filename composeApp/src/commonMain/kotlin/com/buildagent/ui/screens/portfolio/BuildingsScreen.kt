@@ -669,6 +669,14 @@ private fun AddUnitsDialog(
 @Composable
 private fun UnitCard(unit: BuildingUnit, onClick: () -> Unit = {}) {
     val isOccupied = unit.status == UnitStatus.OCCUPIED
+    val activeLease = unit.leases?.firstOrNull {
+        it.status == LeaseStatus.ACTIVE || it.computedStatus == LeaseStatus.ACTIVE ||
+        it.status == LeaseStatus.PERIODIC || it.status == LeaseStatus.EXPIRING_SOON
+    }
+    val tenant = activeLease?.tenant
+    val rentDisplay = activeLease?.let { "A$${it.rentAmount.fmt2dp()} / ${it.rentFrequency.name.lowercase()}" }
+        ?: unit.rentAmount?.let { "A$${it.fmt2dp()} / ${unit.rentFrequency.name.lowercase()}" }
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(10.dp),
@@ -701,8 +709,12 @@ private fun UnitCard(unit: BuildingUnit, onClick: () -> Unit = {}) {
                         unit.areaSqm?.let { add("${it.toInt()}m²") }
                     }.joinToString(" · ")
                     if (specs.isNotEmpty()) Text(specs, fontSize = 12.sp, color = Gray500)
-                    unit.rentAmount?.let {
-                        Text("A$${it.fmt2dp()} / ${unit.rentFrequency.name.lowercase()}", fontSize = 12.sp, color = Gray500)
+                    if (tenant != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(tenant.fullName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Gray900)
+                        rentDisplay?.let { Text(it, fontSize = 12.sp, color = Brand600, fontWeight = FontWeight.SemiBold) }
+                    } else {
+                        rentDisplay?.let { Text(it, fontSize = 12.sp, color = Gray500) }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
