@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,18 +41,27 @@ fun AdminLeaseExtensionsScreen() {
     val filtered = requests.filter { it.status == tabStatuses[tab] }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Lease Extension Requests", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
+        Column {
+            Text("Lease Extension Requests", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Gray900)
+            Text("Review and action tenant extension requests", fontSize = 13.sp, color = Gray500)
+        }
+        Spacer(Modifier.height(16.dp))
 
         error?.let { Text("Error: $it", color = Danger600, fontSize = 13.sp); Spacer(Modifier.height(8.dp)) }
 
-        TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
+        TabRow(selectedTabIndex = tab, containerColor = White, contentColor = Brand600) {
             tabStatuses.forEachIndexed { idx, status ->
                 val count = requests.count { it.status == status }
                 Tab(
                     selected = tab == idx,
                     onClick = { tab = idx },
-                    text = { Text("$status ($count)", fontSize = 13.sp) }
+                    text = {
+                        Text(
+                            "${status.lowercase().replaceFirstChar { it.uppercase() }} ($count)",
+                            fontSize = 13.sp,
+                            fontWeight = if (tab == idx) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
                 )
             }
         }
@@ -60,7 +71,14 @@ fun AdminLeaseExtensionsScreen() {
             LoadingContent()
         } else if (filtered.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                Text("No ${tabStatuses[tab].lowercase()} requests.", color = Gray500)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("📋", fontSize = 40.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "No ${tabStatuses[tab].lowercase()} requests.",
+                        color = Gray500, fontSize = 14.sp
+                    )
+                }
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -88,27 +106,54 @@ fun AdminLeaseExtensionsScreen() {
 
 @Composable
 fun LeaseExtensionCard(request: LeaseExtensionRequest, onReview: (() -> Unit)?) {
+    val accentColor = when (request.status) {
+        "APPROVED" -> Success600
+        "REJECTED" -> Danger600
+        else -> Warning600
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        elevation = CardDefaults.cardElevation(1.dp)
+        colors = CardDefaults.cardColors(containerColor = White),
+        border = BorderStroke(1.dp, Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Lease: …${request.leaseId.takeLast(8)}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("Current end: ${request.currentEndDate}  →  Proposed: ${request.proposedEndDate}", fontSize = 13.sp, color = Gray700)
-                request.durationMonths?.let { Text("Duration: $it months", fontSize = 12.sp, color = Gray500) }
-                Text("Submitted: ${request.submittedAt}", fontSize = 12.sp, color = Gray500)
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusBadge(request.status, extensionStatusBadge)
-                if (onReview != null) {
-                    OutlinedButton(onClick = onReview, shape = RoundedCornerShape(8.dp)) {
-                        Text("Review", fontSize = 13.sp)
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(accentColor))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Lease …${request.leaseId.takeLast(8)}",
+                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(request.currentEndDate, fontSize = 13.sp, color = Gray700)
+                        Text("  →  ", fontSize = 13.sp, color = Gray500)
+                        Text(request.proposedEndDate, fontSize = 13.sp, color = Brand600, fontWeight = FontWeight.Medium)
+                    }
+                    request.durationMonths?.let {
+                        Text("Duration: $it months", fontSize = 12.sp, color = Gray500)
+                    }
+                    Text("Submitted: ${request.submittedAt.take(10)}", fontSize = 11.sp, color = Gray500)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatusBadge(request.status, extensionStatusBadge)
+                    if (onReview != null) {
+                        Button(
+                            onClick = onReview,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Review", fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -156,21 +201,15 @@ fun ReviewLeaseExtensionDialog(
                     enabled = !resolving,
                     colors = ButtonDefaults.buttonColors(containerColor = Success600),
                     shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Approve")
-                }
+                ) { Text("Approve") }
                 Button(
                     onClick = { onResolve("REJECTED", agentNotes.trim().ifBlank { null }) },
                     enabled = !resolving,
                     colors = ButtonDefaults.buttonColors(containerColor = Danger600),
                     shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Reject")
-                }
+                ) { Text("Reject") }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

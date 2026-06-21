@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,34 +28,37 @@ fun AdminDocumentsScreen() {
     var tab by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Documents", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Column {
+            Text("Documents", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Gray900)
+            Text("Browse and manage uploaded files", fontSize = 13.sp, color = Gray500)
+        }
+        Spacer(Modifier.height(16.dp))
+
+        TabRow(selectedTabIndex = tab, containerColor = White, contentColor = Brand600) {
+            Tab(selected = tab == 0, onClick = { tab = 0; vm.loadDocuments("TENANT") },
+                text = { Text("Tenant Docs", fontWeight = if (tab == 0) FontWeight.SemiBold else FontWeight.Normal) })
+            Tab(selected = tab == 1, onClick = { tab = 1; vm.loadDocuments("BUILDING") },
+                text = { Text("Building Docs", fontWeight = if (tab == 1) FontWeight.SemiBold else FontWeight.Normal) })
+        }
         Spacer(Modifier.height(12.dp))
 
-        TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
-            Tab(
-                selected = tab == 0,
-                onClick = { tab = 0; vm.loadDocuments("TENANT") },
-                text = { Text("Tenant Docs") }
-            )
-            Tab(
-                selected = tab == 1,
-                onClick = { tab = 1; vm.loadDocuments("BUILDING") },
-                text = { Text("Building Docs") }
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-
+        // Info banner
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = Warning100)
+            colors = CardDefaults.cardColors(containerColor = Brand50),
+            border = BorderStroke(1.dp, Brand100),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Text(
-                text = "Document uploads are managed via the web portal. Browse and delete documents here.",
-                color = Warning600,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(12.dp)
-            )
+            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("ℹ️", fontSize = 16.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Document uploads are managed via the web portal. Browse and delete documents here.",
+                    color = Brand600,
+                    fontSize = 13.sp
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
 
@@ -63,7 +68,11 @@ fun AdminDocumentsScreen() {
             LoadingContent()
         } else if (documents.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                Text("No documents found.", color = Gray500)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("📁", fontSize = 40.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("No documents found.", color = Gray500, fontSize = 14.sp)
+                }
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -75,24 +84,46 @@ fun AdminDocumentsScreen() {
 
 @Composable
 fun DocumentRow(doc: Document, onDelete: () -> Unit) {
+    val ext = doc.fileName.substringAfterLast('.', "").uppercase()
+    val iconEmoji = when (ext) {
+        "PDF" -> "📄"
+        "DOC", "DOCX" -> "📝"
+        "XLS", "XLSX" -> "📊"
+        "JPG", "JPEG", "PNG" -> "🖼️"
+        else -> "📎"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(1.dp)
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        border = BorderStroke(1.dp, Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(doc.fileName, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                Text("Type: ${doc.docType}  |  Size: ${formatFileSize(doc.fileSize)}", fontSize = 12.sp, color = Gray500)
-                Text("Uploaded: ${doc.uploadedAt}", fontSize = 12.sp, color = Gray500)
-            }
-            Spacer(Modifier.width(12.dp))
-            TextButton(onClick = onDelete) {
-                Text("Delete", color = Danger600, fontSize = 13.sp)
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(Brand600))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = Brand50) {
+                        Text(iconEmoji, modifier = Modifier.padding(8.dp), fontSize = 18.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(doc.fileName, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Gray900)
+                        Text(
+                            "${doc.docType}  ·  ${formatFileSize(doc.fileSize)}",
+                            fontSize = 12.sp, color = Gray500
+                        )
+                        Text("Uploaded: ${doc.uploadedAt.take(10)}", fontSize = 11.sp, color = Gray500)
+                    }
+                }
+                TextButton(onClick = onDelete) {
+                    Text("Delete", color = Danger600, fontSize = 13.sp)
+                }
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.buildagent.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,7 +36,10 @@ fun PaymentMethodsScreen() {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("Payment Methods", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Column {
+            Text("Payment Methods", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Gray900)
+            Text("Configure how tenants can pay rent", fontSize = 13.sp, color = Gray500)
+        }
 
         error?.let { Text("Error: $it", color = Danger600, fontSize = 13.sp) }
 
@@ -47,73 +53,100 @@ fun PaymentMethodsScreen() {
         val paypalMethod = cfg.methods.find { it.methodId == "paypal" }
         val bankMethod = cfg.methods.find { it.methodId == "bank_transfer" }
 
-        // Section 1: Method toggles
+        // Method toggles card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(1.dp)
+            colors = CardDefaults.cardColors(containerColor = White),
+            border = BorderStroke(1.dp, Gray300),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Methods", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                Box(
+                    modifier = Modifier.width(4.dp).fillMaxHeight()
+                        .background(Brush.verticalGradient(listOf(Brand600, Cyan500)))
+                )
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
+                    Text("Payment Channels", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Gray900)
+                    Text("Enable or disable methods for tenants", fontSize = 12.sp, color = Gray500)
+                    Spacer(Modifier.height(8.dp))
 
-                if (mpesaMethod != null) {
-                    MethodToggleRow(
-                        label = "M-Pesa",
-                        enabled = mpesaMethod.enabled,
-                        onToggle = { vm.toggleMethod("mpesa", it) }
+                    val methodRows = listOf(
+                        Triple("📱", "M-Pesa", mpesaMethod),
+                        Triple("💰", "PayPal", paypalMethod),
+                        Triple("🏦", "Bank Transfer", bankMethod),
                     )
-                }
-                if (paypalMethod != null) {
-                    MethodToggleRow(
-                        label = "PayPal",
-                        enabled = paypalMethod.enabled,
-                        onToggle = { vm.toggleMethod("paypal", it) }
-                    )
-                }
-                if (bankMethod != null) {
-                    MethodToggleRow(
-                        label = "Bank Transfer",
-                        enabled = bankMethod.enabled,
-                        onToggle = { vm.toggleMethod("bank_transfer", it) }
-                    )
+                    methodRows.forEach { (icon, label, method) ->
+                        if (method != null) {
+                            HorizontalDivider(color = Gray100)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(shape = RoundedCornerShape(8.dp), color = Gray50) {
+                                        Text(icon, modifier = Modifier.padding(8.dp), fontSize = 18.sp)
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text(label, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Gray900)
+                                        Text(
+                                            if (method.enabled) "Enabled" else "Disabled",
+                                            fontSize = 12.sp,
+                                            color = if (method.enabled) Success600 else Gray500
+                                        )
+                                    }
+                                }
+                                Switch(
+                                    checked = method.enabled,
+                                    onCheckedChange = { vm.toggleMethod(method.methodId, it) },
+                                    colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = Brand600)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // Section 2: M-Pesa config
+        // M-Pesa config
         if (mpesaMethod?.enabled == true) {
-            MpesaConfigSection(
-                initial = cfg.mpesaConfig,
-                saving = saving,
-                onSave = { req -> vm.updateMpesa(req, onSuccess = {}) }
-            )
+            MpesaConfigSection(initial = cfg.mpesaConfig, saving = saving, onSave = { vm.updateMpesa(it, onSuccess = {}) })
         }
 
-        // Section 3: PayPal config
+        // PayPal config
         if (paypalMethod?.enabled == true) {
-            PaypalConfigSection(
-                initial = cfg.paypalConfig,
-                saving = saving,
-                onSave = { req -> vm.updatePaypal(req, onSuccess = {}) }
-            )
+            PaypalConfigSection(initial = cfg.paypalConfig, saving = saving, onSave = { vm.updatePaypal(it, onSuccess = {}) })
         }
 
-        // Section 4: Banks
+        // Banks
         if (bankMethod?.enabled == true && cfg.banks.isNotEmpty()) {
-            BanksSection(banks = cfg.banks, onToggle = { bankId, enabled -> vm.toggleBank(bankId, enabled) })
+            BanksSection(banks = cfg.banks, onToggle = { id, en -> vm.toggleBank(id, en) })
         }
     }
 }
 
 @Composable
-private fun MethodToggleRow(label: String, enabled: Boolean, onToggle: (Boolean) -> Unit) {
-    Row(
+private fun SectionCard(title: String, icon: String, accentColor: androidx.compose.ui.graphics.Color = Brand600, content: @Composable ColumnScope.() -> Unit) {
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        border = BorderStroke(1.dp, Gray300),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Text(label, fontSize = 15.sp)
-        Switch(checked = enabled, onCheckedChange = onToggle)
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(accentColor))
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(icon, fontSize = 18.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Gray900)
+                }
+                content()
+            }
+        }
     }
 }
 
@@ -127,29 +160,25 @@ private fun MpesaConfigSection(
     var accountNo by remember(initial) { mutableStateOf(initial?.accountNo ?: "") }
     var instructions by remember(initial) { mutableStateOf(initial?.instructions ?: "") }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(1.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("M-Pesa Configuration", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            OutlinedTextField(value = businessNo, onValueChange = { businessNo = it }, label = { Text("Business No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(value = accountNo, onValueChange = { accountNo = it }, label = { Text("Account No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(value = instructions, onValueChange = { instructions = it }, label = { Text("Instructions (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4)
-            Button(
-                onClick = {
-                    if (businessNo.isNotBlank() && accountNo.isNotBlank()) {
-                        onSave(UpdateMpesaConfigRequest(businessNo.trim(), accountNo.trim(), instructions.trim().ifBlank { null }))
-                    }
-                },
-                enabled = !saving,
-                colors = ButtonDefaults.buttonColors(containerColor = Brand600),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(if (saving) "Saving…" else "Save M-Pesa Config")
-            }
-        }
+    SectionCard("M-Pesa Configuration", "📱") {
+        OutlinedTextField(value = businessNo, onValueChange = { businessNo = it },
+            label = { Text("Business No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        OutlinedTextField(value = accountNo, onValueChange = { accountNo = it },
+            label = { Text("Account No *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        OutlinedTextField(value = instructions, onValueChange = { instructions = it },
+            label = { Text("Instructions (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
+            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        Button(
+            onClick = {
+                if (businessNo.isNotBlank() && accountNo.isNotBlank())
+                    onSave(UpdateMpesaConfigRequest(businessNo.trim(), accountNo.trim(), instructions.trim().ifBlank { null }))
+            },
+            enabled = !saving,
+            colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+            shape = RoundedCornerShape(8.dp)
+        ) { Text(if (saving) "Saving…" else "Save M-Pesa Config") }
     }
 }
 
@@ -162,53 +191,45 @@ private fun PaypalConfigSection(
     var email by remember(initial) { mutableStateOf(initial?.email ?: "") }
     var instructions by remember(initial) { mutableStateOf(initial?.instructions ?: "") }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(1.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("PayPal Configuration", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("PayPal Email *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(value = instructions, onValueChange = { instructions = it }, label = { Text("Instructions (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4)
-            Button(
-                onClick = {
-                    if (email.isNotBlank()) {
-                        onSave(UpdatePaypalConfigRequest(email.trim(), instructions.trim().ifBlank { null }))
-                    }
-                },
-                enabled = !saving,
-                colors = ButtonDefaults.buttonColors(containerColor = Brand600),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(if (saving) "Saving…" else "Save PayPal Config")
-            }
-        }
+    SectionCard("PayPal Configuration", "💰", accentColor = Cyan500) {
+        OutlinedTextField(value = email, onValueChange = { email = it },
+            label = { Text("PayPal Email *") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        OutlinedTextField(value = instructions, onValueChange = { instructions = it },
+            label = { Text("Instructions (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
+            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600))
+        Button(
+            onClick = {
+                if (email.isNotBlank())
+                    onSave(UpdatePaypalConfigRequest(email.trim(), instructions.trim().ifBlank { null }))
+            },
+            enabled = !saving,
+            colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+            shape = RoundedCornerShape(8.dp)
+        ) { Text(if (saving) "Saving…" else "Save PayPal Config") }
     }
 }
 
 @Composable
 private fun BanksSection(banks: List<BankConfig>, onToggle: (String, Boolean) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(1.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Banks", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            banks.forEach { bank ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(bank.bankName, fontSize = 14.sp)
-                    Switch(
-                        checked = bank.enabled,
-                        onCheckedChange = { onToggle(bank.bankId, it) }
-                    )
+    SectionCard("Bank Accounts", "🏦", accentColor = Success600) {
+        banks.forEachIndexed { i, bank ->
+            if (i > 0) HorizontalDivider(color = Gray100)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(bank.bankName, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Gray900)
+                    Text(if (bank.enabled) "Active" else "Inactive", fontSize = 12.sp,
+                        color = if (bank.enabled) Success600 else Gray500)
                 }
-                Divider(color = Gray100)
+                Switch(
+                    checked = bank.enabled,
+                    onCheckedChange = { onToggle(bank.bankId, it) },
+                    colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = Brand600)
+                )
             }
         }
     }
