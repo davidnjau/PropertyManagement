@@ -345,12 +345,7 @@ private fun UnitDetailView(
                 ) {
                     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier.size(48.dp).background(Gray100, RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("V", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Gray500)
-                            }
+                            Text("🔑", fontSize = 32.sp)
                             Spacer(Modifier.height(8.dp))
                             Text("No active lease", fontSize = 14.sp, color = Gray500)
                             Text("This unit is currently vacant.", fontSize = 12.sp, color = Gray500)
@@ -485,195 +480,6 @@ private fun AddUnitsDialog(
     onDismiss: () -> Unit,
     onSuccess: () -> Unit
 ) {
-    var mode by remember { mutableStateOf<String?>(null) }
-
-    if (mode == null) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            titleContentColor = MaterialTheme.colorScheme.primary,
-            title = { Text("Add Units", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("How would you like to add units?", fontSize = 13.sp, color = Gray500)
-                    // Single unit option
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { mode = "single" },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = White),
-                        border = BorderStroke(1.dp, Gray300),
-                        elevation = CardDefaults.cardElevation(0.dp)
-                    ) {
-                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(Brand600))
-                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                                Text("Add Single Unit", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
-                                Text("Add one unit with custom details", fontSize = 12.sp, color = Gray500)
-                            }
-                        }
-                    }
-                    // Multiple units option
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { mode = "multiple" },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = White),
-                        border = BorderStroke(1.dp, Gray300),
-                        elevation = CardDefaults.cardElevation(0.dp)
-                    ) {
-                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                            Box(modifier = Modifier.width(4.dp).fillMaxHeight()
-                                .background(Brush.verticalGradient(listOf(Brand600, Cyan500))))
-                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                                Text("Add Multiple Units", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Gray900)
-                                Text("Bulk generate units by floor and prefix (e.g. A101, A102...)", fontSize = 12.sp, color = Gray500)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-        )
-        return
-    }
-
-    if (mode == "single") {
-        AddSingleUnitDialog(buildingId, vm, onDismiss = { mode = null }, onSuccess = onSuccess)
-    } else {
-        AddMultipleUnitsDialog(buildingId, vm, onDismiss = { mode = null }, onSuccess = onSuccess)
-    }
-}
-
-@Composable
-private fun AddSingleUnitDialog(
-    buildingId: String,
-    vm: PortfolioViewModel,
-    onDismiss: () -> Unit,
-    onSuccess: () -> Unit
-) {
-    var unitNumber by remember { mutableStateOf("") }
-    var floor by remember { mutableStateOf("") }
-    var bedrooms by remember { mutableStateOf("") }
-    var bathrooms by remember { mutableStateOf("") }
-    var parking by remember { mutableStateOf("") }
-    var area by remember { mutableStateOf("") }
-    var rentAmount by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var saving by remember { mutableStateOf(false) }
-    var errorMsg by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = { if (!saving) onDismiss() },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        titleContentColor = MaterialTheme.colorScheme.primary,
-        title = { Text("Add Single Unit", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
-                OutlinedTextField(
-                    value = unitNumber,
-                    onValueChange = { unitNumber = it },
-                    label = { Text("Unit Number *") },
-                    placeholder = { Text("e.g. A101") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = floor,
-                        onValueChange = { floor = it.filter { c -> c.isDigit() } },
-                        label = { Text("Floor") },
-                        modifier = Modifier.weight(1f), singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                    )
-                    OutlinedTextField(
-                        value = rentAmount,
-                        onValueChange = { rentAmount = it.filter { c -> c.isDigit() || c == '.' } },
-                        label = { Text("Rent Amount") },
-                        modifier = Modifier.weight(1f), singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = bedrooms,
-                        onValueChange = { bedrooms = it.filter { c -> c.isDigit() } },
-                        label = { Text("Bedrooms") },
-                        modifier = Modifier.weight(1f), singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                    )
-                    OutlinedTextField(
-                        value = bathrooms,
-                        onValueChange = { bathrooms = it.filter { c -> c.isDigit() } },
-                        label = { Text("Bathrooms") },
-                        modifier = Modifier.weight(1f), singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = parking,
-                        onValueChange = { parking = it.filter { c -> c.isDigit() } },
-                        label = { Text("Parking Spaces") },
-                        modifier = Modifier.weight(1f), singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                    )
-                    OutlinedTextField(
-                        value = area,
-                        onValueChange = { area = it.filter { c -> c.isDigit() || c == '.' } },
-                        label = { Text("Area (m2)") },
-                        modifier = Modifier.weight(1f), singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                    )
-                }
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 3,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (unitNumber.isBlank()) { errorMsg = "Unit number is required."; return@Button }
-                    saving = true; errorMsg = null
-                    vm.createUnitsBulk(
-                        buildingId = buildingId,
-                        requests = listOf(CreateUnitRequest(
-                            unitNumber = unitNumber.trim(),
-                            floor = floor.toIntOrNull(),
-                            bedrooms = bedrooms.toIntOrNull() ?: 0,
-                            bathrooms = bathrooms.toIntOrNull() ?: 0,
-                            parkingSpaces = parking.toIntOrNull() ?: 0,
-                            areaSqm = area.toDoubleOrNull(),
-                            rentAmount = rentAmount.toDoubleOrNull(),
-                            notes = notes.trim().ifBlank { null }
-                        )),
-                        onSuccess = { saving = false; onSuccess() },
-                        onError = { saving = false; errorMsg = it }
-                    )
-                },
-                enabled = !saving,
-                colors = ButtonDefaults.buttonColors(containerColor = Brand600)
-            ) { Text(if (saving) "Saving..." else "Add Unit") }
-        },
-        dismissButton = { TextButton(onClick = { if (!saving) onDismiss() }) { Text("Cancel") } }
-    )
-}
-
-@Composable
-private fun AddMultipleUnitsDialog(
-    buildingId: String,
-    vm: PortfolioViewModel,
-    onDismiss: () -> Unit,
-    onSuccess: () -> Unit
-) {
     var prefix by remember { mutableStateOf("A") }
     var startFloor by remember { mutableStateOf("1") }
     var endFloor by remember { mutableStateOf("5") }
@@ -694,10 +500,11 @@ private fun AddMultipleUnitsDialog(
             "Floor $floor: $names"
         }
     }
-    val totalUnits = remember(startFloor, endFloor, unitsPerFloor) {
+
+    val totalUnits = remember(previewLines, unitsPerFloor) {
+        val upf = unitsPerFloor.toIntOrNull()?.coerceAtLeast(1) ?: 0
         val sf = startFloor.toIntOrNull() ?: 0
         val ef = endFloor.toIntOrNull() ?: 0
-        val upf = unitsPerFloor.toIntOrNull()?.coerceAtLeast(1) ?: 0
         if (sf > ef || upf == 0) 0 else (ef - sf + 1) * upf
     }
 
@@ -705,78 +512,105 @@ private fun AddMultipleUnitsDialog(
         onDismissRequest = { if (!saving) onDismiss() },
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         titleContentColor = MaterialTheme.colorScheme.primary,
-        title = { Text("Add Multiple Units", fontWeight = FontWeight.Bold) },
+        title = { Text("Add Units", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 errorMsg?.let { Text(it, color = Danger600, fontSize = 13.sp) }
+
+                // Naming scheme
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = prefix,
                         onValueChange = { prefix = it.uppercase().take(3) },
                         label = { Text("Prefix") },
                         placeholder = { Text("e.g. A") },
-                        modifier = Modifier.weight(1f), singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                     OutlinedTextField(
                         value = unitsPerFloor,
                         onValueChange = { unitsPerFloor = it.filter { c -> c.isDigit() } },
                         label = { Text("Units/Floor") },
-                        modifier = Modifier.weight(1f), singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                 }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = startFloor,
                         onValueChange = { startFloor = it.filter { c -> c.isDigit() } },
                         label = { Text("Start Floor") },
-                        modifier = Modifier.weight(1f), singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                     OutlinedTextField(
                         value = endFloor,
                         onValueChange = { endFloor = it.filter { c -> c.isDigit() } },
                         label = { Text("End Floor") },
-                        modifier = Modifier.weight(1f), singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                 }
+
                 HorizontalDivider(color = Gray100)
+
+                // Optional unit specs
                 Text("Unit Specs (optional)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Gray500)
+
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = bedrooms,
                         onValueChange = { bedrooms = it.filter { c -> c.isDigit() } },
                         label = { Text("Bedrooms") },
-                        modifier = Modifier.weight(1f), singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                     OutlinedTextField(
                         value = bathrooms,
                         onValueChange = { bathrooms = it.filter { c -> c.isDigit() } },
                         label = { Text("Bathrooms") },
-                        modifier = Modifier.weight(1f), singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                     )
                 }
+
                 OutlinedTextField(
                     value = rentAmount,
                     onValueChange = { rentAmount = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text("Rent Amount (optional)") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Gray300, focusedBorderColor = Brand600)
                 )
+
+                // Preview
                 if (previewLines.isNotEmpty()) {
                     HorizontalDivider(color = Gray100)
-                    Surface(shape = RoundedCornerShape(8.dp), color = Brand50) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Brand50
+                    ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("$totalUnits units will be created", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Brand600)
+                            Text(
+                                "$totalUnits units will be created",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Brand600
+                            )
                             Spacer(Modifier.height(4.dp))
-                            previewLines.forEach { Text(it, fontSize = 12.sp, color = Brand600) }
+                            previewLines.forEach { line ->
+                                Text(line, fontSize = 12.sp, color = Brand600)
+                            }
                         }
                     }
                 }
@@ -789,33 +623,46 @@ private fun AddMultipleUnitsDialog(
                     val ef = endFloor.toIntOrNull()
                     val upf = unitsPerFloor.toIntOrNull()?.coerceAtLeast(1)
                     if (prefix.isBlank() || sf == null || ef == null || upf == null) {
-                        errorMsg = "Please fill in all required fields."; return@Button
+                        errorMsg = "Please fill in all required fields."
+                        return@Button
                     }
-                    if (sf > ef) { errorMsg = "Start floor must be <= end floor."; return@Button }
+                    if (sf > ef) {
+                        errorMsg = "Start floor must be <= end floor."
+                        return@Button
+                    }
                     val requests = mutableListOf<CreateUnitRequest>()
                     for (floor in sf..ef) {
                         for (unitIdx in 1..upf) {
-                            requests.add(CreateUnitRequest(
-                                unitNumber = "$prefix$floor${unitIdx.toString().padStart(2, '0')}",
-                                floor = floor,
-                                bedrooms = bedrooms.toIntOrNull() ?: 0,
-                                bathrooms = bathrooms.toIntOrNull() ?: 0,
-                                rentAmount = rentAmount.toDoubleOrNull()
-                            ))
+                            val unitNumber = "$prefix$floor${unitIdx.toString().padStart(2, '0')}"
+                            requests.add(
+                                CreateUnitRequest(
+                                    unitNumber = unitNumber,
+                                    floor = floor,
+                                    bedrooms = bedrooms.toIntOrNull() ?: 0,
+                                    bathrooms = bathrooms.toIntOrNull() ?: 0,
+                                    rentAmount = rentAmount.toDoubleOrNull()
+                                )
+                            )
                         }
                     }
-                    saving = true; errorMsg = null
+                    saving = true
+                    errorMsg = null
                     vm.createUnitsBulk(
-                        buildingId = buildingId, requests = requests,
+                        buildingId = buildingId,
+                        requests = requests,
                         onSuccess = { saving = false; onSuccess() },
                         onError = { saving = false; errorMsg = it }
                     )
                 },
                 enabled = !saving,
                 colors = ButtonDefaults.buttonColors(containerColor = Brand600)
-            ) { Text(if (saving) "Creating..." else "Create Units") }
+            ) {
+                Text(if (saving) "Creating..." else "Create Units")
+            }
         },
-        dismissButton = { TextButton(onClick = { if (!saving) onDismiss() }) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = { if (!saving) onDismiss() }) { Text("Cancel") }
+        }
     )
 }
 
@@ -848,24 +695,10 @@ private fun UnitCard(unit: BuildingUnit, onClick: () -> Unit = {}) {
             ) {
                 Box(
                     modifier = Modifier.size(40.dp)
-                        .background(if (isOccupied) Brand600 else Gray100, RoundedCornerShape(8.dp)),
+                        .background(if (isOccupied) Brand50 else Gray100, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (tenant != null) {
-                        Text(
-                            tenant.fullName.take(1).uppercase(),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = White
-                        )
-                    } else {
-                        Text(
-                            unit.unitNumber.take(1).uppercase(),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isOccupied) White else Gray500
-                        )
-                    }
+                    Text(if (isOccupied) "🏠" else "🔑", fontSize = 18.sp)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -877,6 +710,7 @@ private fun UnitCard(unit: BuildingUnit, onClick: () -> Unit = {}) {
                     }.joinToString(" · ")
                     if (specs.isNotEmpty()) Text(specs, fontSize = 12.sp, color = Gray500)
                     if (tenant != null) {
+                        Spacer(Modifier.height(4.dp))
                         Text(tenant.fullName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Gray900)
                         rentDisplay?.let { Text(it, fontSize = 12.sp, color = Brand600, fontWeight = FontWeight.SemiBold) }
                     } else {
@@ -915,13 +749,7 @@ private fun DetailRow(label: String, value: String) {
 private fun EmptyPortfolioState() {
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier.size(64.dp)
-                    .background(Brush.linearGradient(listOf(Brand600, Cyan500)), RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("B", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = White)
-            }
+            Text("🏢", fontSize = 48.sp)
             Spacer(Modifier.height(12.dp))
             Text("No buildings yet", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Gray700)
             Spacer(Modifier.height(4.dp))
@@ -953,15 +781,10 @@ fun BuildingCard(building: Building, onClick: () -> Unit = {}) {
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Brush.linearGradient(listOf(Brand600, Cyan500)), RoundedCornerShape(10.dp)),
+                        .background(Brand50, RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        (building.name ?: building.address).take(1).uppercase(),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = White
-                    )
+                    Text("🏢", fontSize = 22.sp)
                 }
                 Spacer(Modifier.width(14.dp))
 
@@ -985,7 +808,7 @@ fun BuildingCard(building: Building, onClick: () -> Unit = {}) {
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Chip(label = "${building.unitCount} units", containerColor = Brand50, textColor = Brand600)
+                        Chip(label = "🏠 ${building.unitCount} units", containerColor = Brand50, textColor = Brand600)
                         building.client?.let {
                             Chip(label = "👤 ${it.fullName}", containerColor = Gray100, textColor = Gray700)
                         }

@@ -1,27 +1,21 @@
 package com.buildagent.backend.services
 
 import com.buildagent.backend.db.dbQuery
-import com.buildagent.backend.db.extensions.toLease
 import com.buildagent.backend.db.extensions.toUnit
 import com.buildagent.backend.db.tables.BuildingsTable
-import com.buildagent.backend.db.tables.LeasesTable
-import com.buildagent.backend.db.tables.TenantsTable
 import com.buildagent.backend.db.tables.UnitsTable
 import com.buildagent.shared.models.BuildingUnit
 import com.buildagent.shared.models.CreateUnitRequest
-import com.buildagent.shared.models.LeaseStatus
-import com.buildagent.shared.models.TenantSummary
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import java.util.UUID
 
 class UnitService {
 
     suspend fun listUnits(agencyId: String, buildingId: String): List<BuildingUnit> = dbQuery {
-        val units = UnitsTable
+        UnitsTable
             .innerJoin(BuildingsTable)
             .selectAll()
             .where {
@@ -30,35 +24,10 @@ class UnitService {
             }
             .orderBy(UnitsTable.unitNumber, SortOrder.ASC)
             .map { it.toUnit() }
-
-        if (units.isEmpty()) return@dbQuery units
-
-        val unitIds = units.map { UUID.fromString(it.id) }
-        val activeStatuses = listOf(LeaseStatus.ACTIVE, LeaseStatus.PERIODIC, LeaseStatus.EXPIRING_SOON)
-        val leasesByUnit = LeasesTable
-            .join(TenantsTable, JoinType.LEFT, LeasesTable.tenantId, TenantsTable.id)
-            .selectAll()
-            .where {
-                (LeasesTable.unitId inList unitIds) and
-                (LeasesTable.status inList activeStatuses)
-            }
-            .map { row ->
-                row.toLease().copy(
-                    tenant = TenantSummary(
-                        id = row[TenantsTable.id].value.toString(),
-                        fullName = row[TenantsTable.fullName],
-                        email = row[TenantsTable.email],
-                        phone = row[TenantsTable.phone]
-                    )
-                )
-            }
-            .groupBy { it.unitId }
-
-        units.map { unit -> unit.copy(leases = leasesByUnit[unit.id] ?: emptyList()) }
     }
 
     suspend fun getUnit(agencyId: String, unitId: String): BuildingUnit? = dbQuery {
-        val unit = UnitsTable
+        UnitsTable
             .innerJoin(BuildingsTable)
             .selectAll()
             .where {
@@ -66,24 +35,7 @@ class UnitService {
                 (BuildingsTable.agencyId eq UUID.fromString(agencyId))
             }
             .firstOrNull()
-            ?.toUnit() ?: return@dbQuery null
-
-        val leases = LeasesTable
-            .join(TenantsTable, JoinType.LEFT, LeasesTable.tenantId, TenantsTable.id)
-            .selectAll()
-            .where { LeasesTable.unitId eq UUID.fromString(unitId) }
-            .map { row ->
-                row.toLease().copy(
-                    tenant = TenantSummary(
-                        id = row[TenantsTable.id].value.toString(),
-                        fullName = row[TenantsTable.fullName],
-                        email = row[TenantsTable.email],
-                        phone = row[TenantsTable.phone]
-                    )
-                )
-            }
-
-        unit.copy(leases = leases)
+            ?.toUnit()
     }
 
     suspend fun createUnit(agencyId: String, buildingId: String, request: CreateUnitRequest): BuildingUnit = dbQuery {

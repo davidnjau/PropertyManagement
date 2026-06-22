@@ -20,35 +20,19 @@ class BuildingService {
             .where { BuildingsTable.agencyId eq agencyId and (BuildingsTable.isActive eq true) }
 
         val total = query.count().toInt()
-        val rows = query.limit(limit, offset).toList()
-        val buildingIds = rows.map { it[BuildingsTable.id].value }
-
-        val unitCountMap = if (buildingIds.isNotEmpty()) {
-            UnitsTable.select(UnitsTable.buildingId, UnitsTable.id.count())
-                .where { UnitsTable.buildingId inList buildingIds }
-                .groupBy(UnitsTable.buildingId)
-                .associate { it[UnitsTable.buildingId].value to it[UnitsTable.id.count()].toInt() }
-        } else emptyMap()
-
-        val buildings = rows.map { row ->
-            val bid = row[BuildingsTable.id].value
-            row.toBuilding(withClient = true, unitCount = unitCountMap[bid] ?: 0)
+        val buildings = query.limit(limit, offset).map { row ->
+            row.toBuilding(withClient = true)
         }
         buildings to total
     }
 
     suspend fun get(agencyId: UUID, buildingId: UUID): Building? = dbQuery {
-        val row = BuildingsTable
+        BuildingsTable
             .join(ClientsTable, JoinType.LEFT, BuildingsTable.clientId, ClientsTable.id)
             .selectAll()
             .where { BuildingsTable.id eq buildingId and (BuildingsTable.agencyId eq agencyId) and (BuildingsTable.isActive eq true) }
-            .singleOrNull() ?: return@dbQuery null
-
-        val unitCount = UnitsTable.selectAll()
-            .where { UnitsTable.buildingId eq buildingId }
-            .count().toInt()
-
-        row.toBuilding(withClient = true, unitCount = unitCount)
+            .singleOrNull()
+            ?.toBuilding(withClient = true)
     }
 
     suspend fun create(agencyId: UUID, req: CreateBuildingRequest): Building = dbQuery {
@@ -124,7 +108,7 @@ class BuildingService {
         BuildingSummaryData(total, occupied, vacant, if (total > 0) (occupied.toDouble() / total) * 100 else 0.0, monthlyIncome)
     }
 
-    private fun ResultRow.toBuilding(withClient: Boolean = false, unitCount: Int = 0): Building {
+    private fun ResultRow.toBuilding(withClient: Boolean = false): Building {
         val clientSummary = if (withClient && this.getOrNull(ClientsTable.id) != null) {
             ClientSummary(
                 id = this[ClientsTable.id].value.toString(),
@@ -149,8 +133,7 @@ class BuildingService {
             isActive = this[BuildingsTable.isActive],
             createdAt = this[BuildingsTable.createdAt].toString(),
             updatedAt = this[BuildingsTable.updatedAt].toString(),
-            client = clientSummary,
-            unitCount = unitCount
+            client = clientSummary
         )
     }
 }
